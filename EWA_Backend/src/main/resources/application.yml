@@ -1,22 +1,36 @@
 spring:
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: 'true'
   application:
     name: ewa
   datasource:
-    url: jdbc:postgresql://localhost:5432/ewa_db
-    username: ewapp
-    password: 123
+    hikari:
+      connection-timeout: '30000'
+      idle-timeout: '10000'
+      keepalive-time: '0'
+      maximum-pool-size: '2'
+      max-lifetime: '25000'
+      connection-test-query: SELECT 1
+      minimum-idle: '0'
+    password: npg_fTFq3EKZls9k
     driver-class-name: org.postgresql.Driver
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-
-server:
-  port: 8080
-
+    username: neondb_owner
+    url: jdbc:postgresql://ep-dry-dew-a1askz5i-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+logging:
+  level:
+    org:
+      springframework:
+        web:
+          nodeValue: DEBUG
+          servlet: DEBUG
+          filter: DEBUG
+        boot:
+          web:
+            servlet: DEBUG
 jwt:
-  secret: aLongSecretKeyForJwtWhichMustBeAtLeast256BitsSoHereIsMyLongKey123!
-  expiration: 86400000 # 1 day in ms
+  secret: d0eff2cc4fd31183d73bd1ad913f228d33fb429340012133c7f5f05655bd4042
