@@ -1,4 +1,4 @@
-// Màn hình Thanh toán Hóa đơn (Sprint 2)
+// Màn hình Thanh toán Hóa đơn (Sprint 2) - Redesigned UI/UX
 import { View, Text, TouchableOpacity, SafeAreaView, StatusBar, TextInput, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { ArrowLeft, FileText, AlertCircle, Check, Shield, X, Zap, Search, MapPin, User, Receipt } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -113,6 +113,7 @@ export default function BillPaymentScreen() {
         }
     };
 
+    // Adjusted configuration for specific provider themes while keeping the main app theme consistent
     const serviceTypeConfig = {
         ELECTRIC: { label: 'Điện', icon: '⚡', color: '#EAB308', bgColor: 'bg-yellow-500', lightBg: 'bg-yellow-50', prefix: 'EVN' },
         WATER: { label: 'Nước', icon: '💧', color: '#3B82F6', bgColor: 'bg-blue-500', lightBg: 'bg-blue-50', prefix: 'Sawaco' },
@@ -139,10 +140,12 @@ export default function BillPaymentScreen() {
                 <ScrollView className="flex-1 px-6 pt-6" contentContainerStyle={{ paddingBottom: 100 }}>
 
                     {/* Available Limit */}
-                    <View className="bg-violet-500 rounded-xl p-4 mb-6">
-                        <Text className="text-violet-100 text-sm mb-1">Hạn mức khả dụng</Text>
-                        <Text className="text-white font-heading text-2xl">{formatCurrency(limit)} ₫</Text>
-                        <Text className="text-violet-200 text-xs mt-1">Miễn phí thanh toán hóa đơn</Text>
+                    <View className="bg-primary rounded-2xl p-5 shadow-sm mb-6 relative overflow-hidden">
+                        <View className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full" />
+                        <View className="absolute bottom-10 -left-10 w-24 h-24 bg-white/5 rounded-full" />
+                        <Text className="text-primary-100 text-sm mb-1 font-medium">Hạn mức khả dụng</Text>
+                        <Text className="text-white font-heading text-3xl">{formatCurrency(limit)} ₫</Text>
+                        <Text className="text-primary-200 text-xs mt-2">Miễn phí thanh toán hóa đơn</Text>
                     </View>
 
                     {/* Service Type Toggle */}
@@ -150,12 +153,13 @@ export default function BillPaymentScreen() {
                         <Text className="font-medium text-slate-700 text-sm mb-3">Loại dịch vụ</Text>
                         <View className="flex-row gap-3">
                             <TouchableOpacity
-                                className={`flex-1 p-4 rounded-xl border-2 items-center ${
+                                className={`flex-1 p-4 rounded-2xl border-2 items-center shadow-sm ${
                                     serviceType === 'ELECTRIC'
                                         ? 'border-yellow-400 bg-yellow-50'
-                                        : 'border-slate-200 bg-white'
+                                        : 'border-slate-100 bg-white'
                                 }`}
                                 onPress={() => handleServiceTypeChange('ELECTRIC')}
+                                activeOpacity={0.7}
                             >
                                 <Text className="text-3xl mb-2">⚡</Text>
                                 <Text className={`font-bold ${serviceType === 'ELECTRIC' ? 'text-yellow-700' : 'text-slate-600'}`}>
@@ -163,12 +167,13 @@ export default function BillPaymentScreen() {
                                 </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                className={`flex-1 p-4 rounded-xl border-2 items-center ${
+                                className={`flex-1 p-4 rounded-2xl border-2 items-center shadow-sm ${
                                     serviceType === 'WATER'
                                         ? 'border-blue-400 bg-blue-50'
-                                        : 'border-slate-200 bg-white'
+                                        : 'border-slate-100 bg-white'
                                 }`}
                                 onPress={() => handleServiceTypeChange('WATER')}
+                                activeOpacity={0.7}
                             >
                                 <Text className="text-3xl mb-2">💧</Text>
                                 <Text className={`font-bold ${serviceType === 'WATER' ? 'text-blue-700' : 'text-slate-600'}`}>
@@ -184,7 +189,7 @@ export default function BillPaymentScreen() {
                             Mã khách hàng {serviceType === 'ELECTRIC' ? '(EVN)' : '(Cấp nước)'}
                         </Text>
                         <View className="flex-row items-center gap-3">
-                            <View className="flex-1 flex-row items-center bg-white border border-slate-200 rounded-xl px-4">
+                            <View className="flex-1 flex-row items-center bg-white border border-slate-200 rounded-2xl px-4 shadow-sm">
                                 <Receipt color="#64748B" size={20} />
                                 <TextInput
                                     className="flex-1 py-4 text-base text-slate-900 ml-3"
@@ -200,14 +205,15 @@ export default function BillPaymentScreen() {
                                 />
                             </View>
                             <TouchableOpacity
-                                className={`p-4 rounded-xl ${isLooking ? 'bg-slate-300' : 'bg-violet-500'}`}
+                                className={`p-4 rounded-2xl shadow-sm ${isLooking ? 'bg-slate-300' : 'bg-primary'}`}
                                 onPress={handleLookup}
                                 disabled={isLooking}
+                                activeOpacity={0.8}
                             >
                                 {isLooking ? (
                                     <ActivityIndicator color="white" size="small" />
                                 ) : (
-                                    <Search color="white" size={22} />
+                                    <Search color="white" size={24} />
                                 )}
                             </TouchableOpacity>
                         </View>
@@ -215,9 +221,9 @@ export default function BillPaymentScreen() {
 
                     {/* Bill Details */}
                     {billData && (
-                        <View className="bg-white rounded-xl border border-slate-100 overflow-hidden mb-6">
+                        <View className="bg-white rounded-2xl border border-slate-100 overflow-hidden mb-6 shadow-sm">
                             {/* Bill Header */}
-                            <View className={`p-4 ${serviceType === 'ELECTRIC' ? 'bg-yellow-50' : 'bg-blue-50'}`}>
+                            <View className={`p-5 border-b border-slate-100 ${serviceType === 'ELECTRIC' ? 'bg-yellow-50/50' : 'bg-blue-50/50'}`}>
                                 <View className="flex-row items-center justify-between">
                                     <Text className="font-bold text-slate-800 text-base">
                                         {currentConfig.icon} Hóa đơn {currentConfig.label}
@@ -227,7 +233,7 @@ export default function BillPaymentScreen() {
                             </View>
 
                             {/* Bill Body */}
-                            <View className="p-4">
+                            <View className="p-5">
                                 <View className="flex-row items-center mb-3">
                                     <User color="#64748B" size={16} />
                                     <Text className="text-slate-500 text-sm ml-2">Khách hàng:</Text>
@@ -235,11 +241,11 @@ export default function BillPaymentScreen() {
                                 </View>
                                 <View className="flex-row items-start mb-4">
                                     <MapPin color="#64748B" size={16} />
-                                    <Text className="text-slate-500 text-sm ml-2">Địa chỉ:</Text>
-                                    <Text className="text-slate-700 ml-2 flex-1">{billData.address}</Text>
+                                    <Text className="text-slate-500 text-sm ml-2 mt-0.5">Địa chỉ:</Text>
+                                    <Text className="text-slate-700 ml-2 flex-1 leading-5">{billData.address}</Text>
                                 </View>
 
-                                <View className="h-px bg-slate-200 mb-4" />
+                                <View className="h-px bg-slate-100 mb-4" />
 
                                 {/* Amount */}
                                 <View className="flex-row justify-between items-center mb-3">
@@ -250,7 +256,7 @@ export default function BillPaymentScreen() {
                                 </View>
                                 <View className="flex-row justify-between items-center mb-3">
                                     <Text className="text-slate-600">Phí giao dịch</Text>
-                                    <Text className="text-emerald-600 font-bold">Miễn phí</Text>
+                                    <Text className="text-success font-bold">Miễn phí</Text>
                                 </View>
                                 <View className="flex-row justify-between items-center">
                                     <Text className="text-slate-600">Nhà cung cấp</Text>
@@ -259,9 +265,9 @@ export default function BillPaymentScreen() {
                             </View>
 
                             {isOverLimit && (
-                                <View className="bg-red-50 p-3 flex-row items-center mx-4 mb-4 rounded-lg">
-                                    <AlertCircle color="#EF4444" size={16} />
-                                    <Text className="text-red-500 text-sm ml-2 flex-1">
+                                <View className="bg-red-50 p-4 flex-row items-center mx-5 mb-5 rounded-xl border border-red-100">
+                                    <AlertCircle color="#EF4444" size={18} />
+                                    <Text className="text-red-600 text-sm ml-2 flex-1 font-medium">
                                         Số tiền hóa đơn vượt quá hạn mức khả dụng
                                     </Text>
                                 </View>
@@ -271,30 +277,31 @@ export default function BillPaymentScreen() {
 
                     {/* Free Badge */}
                     {!billData && (
-                        <View className="bg-violet-50 p-3 rounded-xl mb-6 flex-row items-center">
-                            <Zap color="#7C3AED" size={18} />
-                            <Text className="text-violet-700 text-sm ml-2 font-medium">
-                                🎉 Thanh toán hóa đơn: <Text className="font-bold">Miễn phí 100%</Text> khi dùng hạn mức lương
+                        <View className="bg-success-50 p-4 rounded-2xl mb-6 flex-row items-center border border-success-100">
+                            <Zap color="#10B981" size={20} />
+                            <Text className="text-success-700 text-sm ml-2 font-medium flex-1">
+                                🎉 Thanh toán hóa đơn <Text className="font-bold">Miễn phí 100%</Text> khi dùng hạn mức lương.
                             </Text>
                         </View>
                     )}
 
                     {/* Error Message */}
                     {error && (
-                        <View className="flex-row items-center mb-4 bg-red-50 p-3 rounded-xl">
-                            <AlertCircle color="#EF4444" size={18} />
-                            <Text className="text-red-500 text-sm ml-2 font-medium flex-1">{error}</Text>
+                        <View className="flex-row items-center mb-4 bg-red-50 p-4 rounded-2xl border border-red-100">
+                            <AlertCircle color="#EF4444" size={20} />
+                            <Text className="text-red-600 text-sm ml-2 font-medium flex-1">{error}</Text>
                         </View>
                     )}
 
                     {/* Payment Button */}
                     {billData && (
                         <TouchableOpacity
-                            className={`py-4 rounded-xl items-center flex-row justify-center ${
-                                canPay && !isProcessing ? 'bg-violet-500' : 'bg-slate-300'
+                            className={`py-4 rounded-2xl items-center flex-row justify-center shadow-sm ${
+                                canPay && !isProcessing ? 'bg-success' : 'bg-slate-300'
                             }`}
                             onPress={showConfirmation}
                             disabled={!canPay || isProcessing}
+                            activeOpacity={0.8}
                         >
                             {isProcessing ? (
                                 <ActivityIndicator color="white" />
@@ -317,10 +324,10 @@ export default function BillPaymentScreen() {
                 animationType="fade"
                 onRequestClose={() => setShowConfirmModal(false)}
             >
-                <View className="flex-1 bg-black/50 justify-center items-center px-6">
-                    <View className="bg-white w-full rounded-2xl overflow-hidden shadow-2xl">
+                <View className="flex-1 bg-slate-900/40 justify-center items-center px-6">
+                    <View className="bg-white w-full rounded-3xl overflow-hidden shadow-xl">
                         {/* Modal Header */}
-                        <View className="bg-violet-500 p-5 flex-row items-center justify-between">
+                        <View className="bg-primary p-5 flex-row items-center justify-between">
                             <View className="flex-row items-center">
                                 <Shield color="white" size={24} />
                                 <Text className="text-white font-heading text-lg ml-2">Xác nhận thanh toán</Text>
@@ -331,37 +338,37 @@ export default function BillPaymentScreen() {
                         </View>
 
                         {/* Modal Body */}
-                        <View className="p-5">
+                        <View className="p-6">
                             {/* Amount Display */}
-                            <View className="items-center mb-5 pb-5 border-b border-slate-100">
+                            <View className="items-center mb-6 pb-6 border-b border-slate-100">
                                 <Text className="text-slate-500 text-sm mb-1">Số tiền thanh toán</Text>
-                                <Text className="text-violet-500 font-heading text-3xl">
+                                <Text className="text-primary font-heading text-4xl">
                                     {formatCurrency(billData?.amount || 0)}
                                 </Text>
                             </View>
 
                             {/* Details */}
-                            <View className="bg-slate-50 rounded-xl p-4 mb-5">
+                            <View className="bg-slate-50 rounded-2xl p-4 mb-6 border border-slate-100">
                                 <View className="flex-row items-center justify-between py-2">
-                                    <Text className="text-slate-600">Loại dịch vụ</Text>
+                                    <Text className="text-slate-500">Loại dịch vụ</Text>
                                     <Text className="text-slate-800 font-semibold">
                                         {currentConfig.icon} Hóa đơn {currentConfig.label}
                                     </Text>
                                 </View>
                                 <View className="h-px bg-slate-200 my-2" />
                                 <View className="flex-row items-center justify-between py-2">
-                                    <Text className="text-slate-600">Khách hàng</Text>
+                                    <Text className="text-slate-500">Khách hàng</Text>
                                     <Text className="text-slate-800 font-semibold">{billData?.customerName}</Text>
                                 </View>
                                 <View className="h-px bg-slate-200 my-2" />
                                 <View className="flex-row items-center justify-between py-2">
-                                    <Text className="text-slate-600">Phí giao dịch</Text>
-                                    <Text className="text-emerald-600 font-bold">Miễn phí</Text>
+                                    <Text className="text-slate-500">Phí giao dịch</Text>
+                                    <Text className="text-success font-bold">Miễn phí</Text>
                                 </View>
                                 <View className="h-px bg-slate-200 my-2" />
                                 <View className="flex-row items-center justify-between py-2">
-                                    <Text className="text-slate-600">Hạn mức còn lại</Text>
-                                    <Text className="text-emerald-600 font-bold">
+                                    <Text className="text-slate-500">Hạn mức còn lại</Text>
+                                    <Text className="text-success font-bold">
                                         {formatCurrency(limit - (billData?.amount || 0))} ₫
                                     </Text>
                                 </View>
@@ -370,22 +377,24 @@ export default function BillPaymentScreen() {
                             {/* Action Buttons */}
                             <View className="flex-row gap-3">
                                 <TouchableOpacity
-                                    className="flex-1 py-4 rounded-xl border border-slate-200 items-center"
+                                    className="flex-1 py-4 rounded-2xl border border-slate-200 items-center bg-white"
                                     onPress={() => setShowConfirmModal(false)}
+                                    activeOpacity={0.7}
                                 >
-                                    <Text className="text-slate-600 font-semibold">Hủy</Text>
+                                    <Text className="text-slate-600 font-semibold text-base">Hủy</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    className="flex-1 py-4 rounded-xl bg-violet-500 items-center flex-row justify-center"
+                                    className="flex-1 py-4 rounded-2xl bg-success items-center flex-row justify-center"
                                     onPress={handlePayment}
                                     disabled={isProcessing}
+                                    activeOpacity={0.8}
                                 >
                                     {isProcessing ? (
                                         <ActivityIndicator color="white" size="small" />
                                     ) : (
                                         <>
                                             <Check color="white" size={20} />
-                                            <Text className="text-white font-bold ml-2">Xác nhận</Text>
+                                            <Text className="text-white font-bold text-base ml-2">Xác nhận</Text>
                                         </>
                                     )}
                                 </TouchableOpacity>

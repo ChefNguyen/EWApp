@@ -145,63 +145,64 @@ export default function HomeScreen() {
                     </View>
                 </View>
 
-                {/* Quick Actions - Row 1 (3 items) */}
-                <View className="flex-row gap-4 mb-3">
-                    <TouchableOpacity
-                        className="flex-1 bg-white p-4 rounded-xl border border-slate-100 items-center"
-                        onPress={() => router.push('/withdraw')}
-                    >
-                        <View className="w-12 h-12 bg-emerald-100 rounded-full items-center justify-center mb-2">
-                            <Wallet color="#10B981" size={24} />
-                        </View>
-                        <Text className="font-semibold text-slate-800 text-sm">Rút tiền</Text>
-                    </TouchableOpacity>
+                {/* Quick Actions - Bento Grid */}
+                <View className="mb-6">
+                    <Text className="font-heading text-slate-800 text-lg mb-3">Tiện ích</Text>
+                    <View className="flex-col gap-3">
+                        {/* Row 1 */}
+                        <View className="flex-row gap-3">
+                            <TouchableOpacity
+                                className="flex-1 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm"
+                                onPress={() => router.push('/withdraw')}
+                                activeOpacity={0.7}
+                            >
+                                <View className="w-10 h-10 bg-emerald-50 rounded-xl items-center justify-center mb-3">
+                                    <Wallet color="#10B981" size={20} />
+                                </View>
+                                <Text className="font-semibold text-slate-800 text-base">Rút tiền</Text>
+                                <Text className="text-slate-400 text-xs mt-1">Chuyển về tài khoản</Text>
+                            </TouchableOpacity>
 
-                    <TouchableOpacity
-                        className="flex-1 bg-white p-4 rounded-xl border border-slate-100 items-center"
-                        onPress={() => router.push('/topup')}
-                    >
-                        <View className="w-12 h-12 bg-orange-100 rounded-full items-center justify-center mb-2">
-                            <Smartphone color="#F97316" size={24} />
+                            <TouchableOpacity
+                                className="flex-1 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm"
+                                onPress={() => router.push('/topup')}
+                                activeOpacity={0.7}
+                            >
+                                <View className="w-10 h-10 bg-orange-50 rounded-xl items-center justify-center mb-3">
+                                    <Smartphone color="#F97316" size={20} />
+                                </View>
+                                <Text className="font-semibold text-slate-800 text-base">Nạp ĐT</Text>
+                                <Text className="text-slate-400 text-xs mt-1">Miễn phí giao dịch</Text>
+                            </TouchableOpacity>
                         </View>
-                        <Text className="font-semibold text-slate-800 text-sm">Nạp ĐT</Text>
-                    </TouchableOpacity>
+                        
+                        {/* Row 2 */}
+                        <View className="flex-row gap-3">
+                            <TouchableOpacity
+                                className="flex-1 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm"
+                                onPress={() => router.push('/bill-payment')}
+                                activeOpacity={0.7}
+                            >
+                                <View className="w-10 h-10 bg-violet-50 rounded-xl items-center justify-center mb-3">
+                                    <FileText color="#7C3AED" size={20} />
+                                </View>
+                                <Text className="font-semibold text-slate-800 text-base">Hóa đơn</Text>
+                                <Text className="text-slate-400 text-xs mt-1">Điện, nước, internet</Text>
+                            </TouchableOpacity>
 
-                    <TouchableOpacity
-                        className="flex-1 bg-white p-4 rounded-xl border border-slate-100 items-center"
-                        onPress={() => router.push('/bill-payment')}
-                    >
-                        <View className="w-12 h-12 bg-violet-100 rounded-full items-center justify-center mb-2">
-                            <FileText color="#7C3AED" size={24} />
+                            <TouchableOpacity
+                                className="flex-1 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm"
+                                onPress={() => router.push('/history')}
+                                activeOpacity={0.7}
+                            >
+                                <View className="w-10 h-10 bg-primary-50 rounded-xl items-center justify-center mb-3">
+                                    <History color="#2563EB" size={20} />
+                                </View>
+                                <Text className="font-semibold text-slate-800 text-base">Lịch sử</Text>
+                                <Text className="text-slate-400 text-xs mt-1">Quản lý giao dịch</Text>
+                            </TouchableOpacity>
                         </View>
-                        <Text className="font-semibold text-slate-800 text-sm">Hóa đơn</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Quick Actions - Row 2 (2 items) */}
-                <View className="flex-row gap-4 mb-6">
-                    <TouchableOpacity
-                        className="flex-1 bg-white p-4 rounded-xl border border-slate-100 items-center"
-                        onPress={() => router.push('/link-bank')}
-                    >
-                        <View className="w-12 h-12 bg-primary-100 rounded-full items-center justify-center mb-2">
-                            <CreditCard color="#4F46E5" size={24} />
-                        </View>
-                        <Text className="font-semibold text-slate-800 text-sm">Liên kết TK</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        className="flex-1 bg-white p-4 rounded-xl border border-slate-100 items-center"
-                        onPress={() => router.push('/history')}
-                    >
-                        <View className="w-12 h-12 bg-amber-100 rounded-full items-center justify-center mb-2">
-                            <History color="#F59E0B" size={24} />
-                        </View>
-                        <Text className="font-semibold text-slate-800 text-sm">Lịch sử</Text>
-                    </TouchableOpacity>
-
-                    {/* Empty spacer to balance the row */}
-                    <View className="flex-1" />
+                    </View>
                 </View>
 
                 {/* Bank Account Status */}
