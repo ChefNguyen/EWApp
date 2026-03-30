@@ -30,13 +30,13 @@ trigger:
 # Only run pipeline for backend changes (or pipeline YAML itself)
 paths:
   include:
-    - EWA_Backend/**
+    - EWA_BE/**
     - azure-pipelines.yml
 
 # Exclude mobile-only changes from triggering backend pipeline
 paths:
   exclude:
-    - EWA_Frontend/**
+    - EWA_FE/**
 
 pool:
   vmImage: ubuntu-latest
@@ -48,7 +48,7 @@ variables:
   - name: IMAGE_TAG
     value: $(Build.BuildId)-$(Build.SourceVersion:0:7)
   - name: BACKEND_DIR
-    value: EWA_Backend
+    value: EWA_BE
 
 stages:
 
