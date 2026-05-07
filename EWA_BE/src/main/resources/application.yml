@@ -1,18 +1,11 @@
 spring:
-  jpa:
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-    hibernate:
-      ddl-auto: update
-    show-sql: 'true'
   application:
     name: ewa
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://ep-dry-dew-a1askz5i-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require}
-    username: ${SPRING_DATASOURCE_USERNAME:neondb_owner}
-    password: ${SPRING_DATASOURCE_PASSWORD:CHANGE_ME}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require&prepareThreshold=0}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres.rktlpjibumysjxjfcggi}
+    password: ${SPRING_DATASOURCE_PASSWORD:Tannguyen28065}
     driver-class-name: org.postgresql.Driver
     hikari:
       connection-timeout: 30000
@@ -51,3 +44,18 @@ management:
 jwt:
   secret: ${JWT_SECRET:d0eff2cc4fd31183d73bd1ad913f228d33fb429340012133c7f5f05655bd4042}
   expiration: ${JWT_EXPIRATION:86400000}
+
+sepay:
+  base-url: ${SEPAY_BASE_URL:https://bankhub-api-sandbox.sepay.vn}
+  api-key: ${SEPAY_API_KEY:}
+  webhook-secret: ${SEPAY_WEBHOOK_SECRET:}
+
+ewa:
+  withdrawal:
+    provider: ${EWA_WITHDRAWAL_PROVIDER:sepay}
+  utility:
+    provider: ${EWA_UTILITY_PROVIDER:mock}
+    mock:
+      failure-rate: ${EWA_UTILITY_MOCK_FAILURE_RATE:0.05}
+      min-delay-ms: ${EWA_UTILITY_MOCK_MIN_DELAY_MS:1000}
+      max-delay-ms: ${EWA_UTILITY_MOCK_MAX_DELAY_MS:2000}

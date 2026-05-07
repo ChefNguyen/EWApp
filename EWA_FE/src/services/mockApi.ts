@@ -59,27 +59,51 @@ export const lookupBankAccount = async (bankCode: string, accountNo: string) => 
   return { success: false, error: 'Không tìm thấy tài khoản' };
 };
 
+import { Platform } from 'react-native';
+
+const BASE_URL = Platform.OS === 'android' ? 'http://10.0.2.2:8080/api' : 'http://localhost:8080/api';
+
 export const processWithdrawal = async (employeeId: string, amount: number) => {
-  await delay(1000);
-  const employee = MOCK_EMPLOYEES[employeeId];
-  if (!employee) return { success: false, error: 'Nhân viên không tồn tại' };
-  const limit = calculateLimit(employee);
-  const fee = calculateFee(amount);
-  const totalDeduction = amount + fee;
-  if (totalDeduction > limit) {
-    return { success: false, error: `Số tiền rút + phí (${totalDeduction.toLocaleString()}đ) vượt quá hạn mức (${limit.toLocaleString()}đ)` };
+  try {
+    const response = await fetch(`${BASE_URL}/withdrawals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        employeeCode: employeeId,
+        amountVnd: amount,
+        bankAccountId: "11111111-1111-1111-1111-111111111111" // Seeded account
+      })
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return { success: false, error: result.message || 'Lỗi hệ thống' };
+    }
+    const newTransaction = {
+      id: result.transactionId || `TXN${Date.now()}`,
+      type: 'WITHDRAWAL',
+      amount: result.amountVnd || amount,
+      fee: result.feeVnd || 0,
+      netAmount: result.netAmountVnd || amount,
+      status: result.status,
+      createdAt: new Date().toISOString(),
+      bankName: 'VCB'
+    };
+    return { success: true, data: { transaction: newTransaction, newLimit: result.newLimitVnd || 0 } };
+  } catch (error: any) {
+    return { success: false, error: 'Không thể kết nối đến máy chủ' };
   }
-  employee.advancedAmount += totalDeduction;
-  const newTransaction = {
-    id: `TXN${Date.now()}`, type: 'WITHDRAWAL', amount, fee, netAmount: amount,
-    status: 'SUCCESS', createdAt: new Date().toISOString(), bankName: employee.linkedBank?.bankCode || 'N/A',
-  };
-  if (!MOCK_TRANSACTIONS[employeeId]) MOCK_TRANSACTIONS[employeeId] = [];
-  MOCK_TRANSACTIONS[employeeId].unshift(newTransaction);
-  return { success: true, data: { transaction: newTransaction, newLimit: calculateLimit(employee) } };
 };
 
 export const getTransactionHistory = async (employeeId: string) => {
+  try {
+    const response = await fetch(`${BASE_URL}/withdrawals/history/${employeeId}`);
+    if (response.ok) {
+      const result = await response.json();
+      return { success: true, data: result };
+    }
+  } catch (e) {
+    // Fallback to mock
+  }
   await delay(300);
   const transactions = MOCK_TRANSACTIONS[employeeId] || [];
   return { success: true, data: transactions };
@@ -113,54 +137,63 @@ export const detectCarrier = (phoneNumber: string) => {
 };
 
 export const processTopup = async (employeeId: string, phoneNumber: string, denomination: number) => {
-  await delay(1000);
-  const employee = MOCK_EMPLOYEES[employeeId];
-  if (!employee) return { success: false, error: 'Nhân viên không tồn tại' };
-  const limit = calculateLimit(employee);
-  if (denomination > limit) {
-    return { success: false, error: `Mệnh giá nạp (${denomination.toLocaleString()}đ) vượt quá hạn mức khả dụng (${limit.toLocaleString()}đ)` };
+  try {
+    const response = await fetch(`${BASE_URL}/topup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ employeeCode: employeeId, phoneNumber, denomination })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      return { success: false, error: result.error || result.message || 'Nạp tiền thất bại' };
+    }
+    const carrierInfo = detectCarrier(phoneNumber);
+    const newTransaction = {
+      id: result.transactionId,
+      type: 'TOPUP', amount: denomination, fee: 0, netAmount: denomination,
+      status: 'SUCCESS', createdAt: new Date().toISOString(), phoneNumber,
+      carrier: carrierInfo ? (carrierInfo.carrier as any).name : 'Payoo',
+    };
+    return { success: true, data: { transaction: newTransaction, newLimit: result.newLimit || 0 } };
+  } catch (error: any) {
+    return { success: false, error: 'Không thể kết nối đến máy chủ' };
   }
-  const carrierInfo = detectCarrier(phoneNumber);
-  employee.advancedAmount += denomination;
-  const newTransaction = {
-    id: `TXN${Date.now()}`, type: 'TOPUP', amount: denomination, fee: 0, netAmount: denomination,
-    status: 'SUCCESS', createdAt: new Date().toISOString(), phoneNumber,
-    carrier: carrierInfo ? (carrierInfo.carrier as any).name : 'Không xác định',
-  };
-  if (!MOCK_TRANSACTIONS[employeeId]) MOCK_TRANSACTIONS[employeeId] = [];
-  MOCK_TRANSACTIONS[employeeId].unshift(newTransaction);
-  return { success: true, data: { transaction: newTransaction, newLimit: calculateLimit(employee) } };
 };
 
 export const lookupBill = async (serviceType: string, customerId: string) => {
-  await delay(800);
-  const prefix = serviceType === 'ELECTRIC' ? 'EVN' : serviceType === 'WATER' ? 'WATER' : serviceType;
-  const key = `${prefix}-${customerId}`;
-  const bill = MOCK_BILLS[key];
-  if (!bill) return { success: false, error: 'Không tìm thấy hóa đơn với mã khách hàng này' };
-  if (bill.status === 'PAID') return { success: false, error: 'Hóa đơn này đã được thanh toán trước đó' };
-  return { success: true, data: { billKey: key, ...bill } };
+  try {
+    const response = await fetch(`${BASE_URL}/bills/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ serviceType, customerId })
+    });
+    const result = await response.json();
+    if (!response.ok || result.error) {
+      return { success: false, error: result.error || 'Không tìm thấy hóa đơn' };
+    }
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: 'Không thể kết nối đến máy chủ' };
+  }
 };
 
 export const payBill = async (employeeId: string, billKey: string) => {
-  await delay(1000);
-  const employee = MOCK_EMPLOYEES[employeeId];
-  if (!employee) return { success: false, error: 'Nhân viên không tồn tại' };
-  const bill = MOCK_BILLS[billKey];
-  if (!bill) return { success: false, error: 'Hóa đơn không tồn tại' };
-  if (bill.status === 'PAID') return { success: false, error: 'Hóa đơn này đã được thanh toán' };
-  const limit = calculateLimit(employee);
-  if (bill.amount > limit) {
-    return { success: false, error: `Số tiền hóa đơn (${bill.amount.toLocaleString()}đ) vượt quá hạn mức khả dụng (${limit.toLocaleString()}đ)` };
+  try {
+    const response = await fetch(`${BASE_URL}/bills/pay`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ employeeCode: employeeId, billKey })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      return { success: false, error: result.error || 'Thanh toán lỗi' };
+    }
+    const newTransaction = {
+      id: result.transactionId, type: 'BILL_PAYMENT', amount: 0, fee: 0, netAmount: 0,
+      status: 'SUCCESS', createdAt: new Date().toISOString(), serviceType: 'BILLS', provider: 'Payoo', customerId: billKey
+    };
+    return { success: true, data: { transaction: newTransaction, newLimit: result.newLimit || 0, bill: { status: 'PAID' } } };
+  } catch (error: any) {
+    return { success: false, error: 'Không thể kết nối đến máy chủ' };
   }
-  employee.advancedAmount += bill.amount;
-  bill.status = 'PAID';
-  const newTransaction = {
-    id: `TXN${Date.now()}`, type: 'BILL_PAYMENT', amount: bill.amount, fee: 0, netAmount: bill.amount,
-    status: 'SUCCESS', createdAt: new Date().toISOString(), serviceType: bill.serviceType,
-    provider: bill.provider, customerId: billKey.split('-').slice(1).join('-'),
-  };
-  if (!MOCK_TRANSACTIONS[employeeId]) MOCK_TRANSACTIONS[employeeId] = [];
-  MOCK_TRANSACTIONS[employeeId].unshift(newTransaction);
-  return { success: true, data: { transaction: newTransaction, newLimit: calculateLimit(employee), bill: { ...bill } } };
 };
