@@ -25,7 +25,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configure(http))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/webhooks/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                        .requestMatchers("/api/auth/**", "/api/webhooks/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/api/withdrawals", "/api/withdrawals/**", "/api/topup", "/api/topup/**", "/api/bills", "/api/bills/**")
                         .permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

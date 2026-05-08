@@ -28,7 +28,29 @@ public class DataSeeder implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         if (employeeRepository.count() > 0) {
-            return; // Already seeded
+            // Delete old data to force re-seed if BankAccount is missing
+            if (bankAccountRepository.count() == 0) {
+                System.out.println("⚠️ Phát hiện dữ liệu cũ bị thiếu BankAccount. Đang xóa dữ liệu cũ để Seed lại từ đầu...");
+                bankAccountRepository.deleteAll();
+                employeeRepository.deleteAll();
+                payrollPeriodRepository.deleteAll();
+                // Note: employer needs to be deleted via entity manager or repository if it exists
+                entityManager.createQuery("DELETE FROM Employer").executeUpdate();
+            } else {
+                employeeRepository.findByEmployeeCode("NV001").ifPresent(emp -> {
+                    bankAccountRepository.findAll().stream()
+                            .filter(b -> "NV001".equals(b.getEmployee().getEmployeeCode()))
+                            .findFirst()
+                            .ifPresent(bank -> {
+                                System.out.println("========== [THÔNG BÁO] ==========");
+                                System.out.println("✅ Đã tìm thấy dữ liệu mẫu (Seeded).");
+                                System.out.println("Mã nhân viên: NV001");
+                                System.out.println("ID Ngân hàng (Dùng cho Postman): " + bank.getId());
+                                System.out.println("=================================");
+                            });
+                });
+                return; // Already seeded completely
+            }
         }
 
         // 1. Create Employer
@@ -68,7 +90,7 @@ public class DataSeeder implements CommandLineRunner {
         bank.setAccountNoLast4("6789");
         bank.setAccountNameVerified("NGUYEN VAN A");
         bank.setStatus(BankAccountStatus.VERIFIED);
-        bankAccountRepository.save(bank);
+        bank = bankAccountRepository.save(bank);
 
         // 5. Create PayrollPeriod
         PayrollPeriod period = new PayrollPeriod();
@@ -90,6 +112,6 @@ public class DataSeeder implements CommandLineRunner {
         work.setWorkDate(LocalDate.now());
         entityManager.persist(work);
 
-        System.out.println("✅ Data Seeded for NV001. Limit ~ 5.4M VND. BankAccountId: 11111111-1111-1111-1111-111111111111");
+        System.out.println("✅ Data Seeded for NV001. Limit ~ 5.4M VND. BankAccountId: " + bank.getId());
     }
 }
