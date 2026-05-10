@@ -34,6 +34,9 @@ import java.util.UUID;
 @ConditionalOnProperty(name = "ewa.utility.provider", havingValue = "mock", matchIfMissing = true)
 public class MockPayooServiceImpl implements UtilityPaymentService {
 
+    private static final long BILL_FEE_OVER_500K = 10_000L;
+    private static final long BILL_FEE_OVER_1M_EXTRA = 20_000L;
+
     @Value("${ewa.utility.mock.failure-rate:0.05}")
     private double failureRate;
 
@@ -177,13 +180,16 @@ public class MockPayooServiceImpl implements UtilityPaymentService {
                     .build();
         }
 
+        long billFee = calculateBillFee(bill.getAmount());
+        long totalDebit = bill.getAmount() + billFee;
+
         // Check limit
         long available = availableLimitService.calculateAvailableLimit(request.getEmployeeCode());
-        if (bill.getAmount() > available) {
+        if (totalDebit > available) {
             return BillPayResponse.builder()
                     .success(false)
                     .error(String.format("Hạn mức không đủ. Còn lại: %d VND, yêu cầu: %d VND",
-                            available, bill.getAmount()))
+                            available, totalDebit))
                     .build();
         }
 
@@ -196,11 +202,16 @@ public class MockPayooServiceImpl implements UtilityPaymentService {
                     .build();
         }
 
-        // Write ledger entry
+        // Write ledger entries
         PayrollPeriod payrollPeriod = getOpenPayrollPeriod(employee);
         String txnId = "BILL-" + UUID.randomUUID();
+        UUID referenceId = UUID.nameUUIDFromBytes(txnId.getBytes());
         writeLedgerEntry(employee, payrollPeriod, LedgerEntryType.BILL_DEBIT,
-                bill.getAmount(), UUID.nameUUIDFromBytes(txnId.getBytes()));
+                bill.getAmount(), referenceId);
+        if (billFee > 0) {
+            writeLedgerEntry(employee, payrollPeriod, LedgerEntryType.FEE_DEBIT,
+                    billFee, referenceId);
+        }
 
         // Mark bill as paid
         mockDataStore.markBillPaid(request.getBillKey());
@@ -212,6 +223,7 @@ public class MockPayooServiceImpl implements UtilityPaymentService {
                 .success(true)
                 .transactionId(txnId)
                 .newLimit(newLimit)
+                .feeVnd(billFee)
                 .build();
     }
 
@@ -230,6 +242,17 @@ public class MockPayooServiceImpl implements UtilityPaymentService {
 
     private boolean shouldFail() {
         return randomSupplier.get() < failureRate;
+    }
+
+    private long calculateBillFee(long billAmount) {
+        long fee = 0L;
+        if (billAmount > 500_000L) {
+            fee += BILL_FEE_OVER_500K;
+        }
+        if (billAmount > 1_000_000L) {
+            fee += BILL_FEE_OVER_1M_EXTRA;
+        }
+        return fee;
     }
 
     private PayrollPeriod getOpenPayrollPeriod(Employee employee) {

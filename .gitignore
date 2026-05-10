@@ -1,7 +1,37 @@
-.gitnexus
-.gemini
-.claude
-ui-ux-pro-max-skill
-AGENTS.md
-CLAUDE.md
-.idea
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.expo/
+dist/
+web-build/
+
+# Java (Maven)
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/wrapper/maven-wrapper.tar.gz
+
+# Secrets & Configs
+.env
+.env.local
+.mcp.json
+.claude/
+.gemini/
+.gitnexus/
+gitnexus.log
+status.md
+INTEGRATION_PLAN.md
+
+# OS
+.DS_Store
+Thumbs.db

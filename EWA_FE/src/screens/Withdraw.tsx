@@ -21,15 +21,23 @@ export default function WithdrawScreen() {
   const navigation = useNavigation();
   const { employee, refreshEmployee } = useApp();
   const [amountStr, setAmountStr] = useState('');
+  const [limit, setLimit] = useState(0);
+  const [loadingLimit, setLoadingLimit] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [success, setSuccess] = useState(false);
   const [resultData, setResultData] = useState<any>(null);
 
-  useEffect(() => { refreshEmployee(); }, []);
+  useEffect(() => {
+    if (!employee?.token) return;
+    setLoadingLimit(true);
+    mockApi.getAvailableLimit(employee).then(res => {
+      setLimit(res);
+      setLoadingLimit(false);
+    });
+  }, [employee?.token]);
 
-  const limit = useMemo(() => employee ? mockApi.calculateLimit(employee) : 0, [employee]);
   const amount = useMemo(() => {
     const n = parseInt(amountStr.replace(/\D/g, ''), 10);
     return isNaN(n) ? 0 : n;
@@ -37,11 +45,19 @@ export default function WithdrawScreen() {
   const fee = useMemo(() => amount > 0 ? mockApi.calculateFee(amount) : 0, [amount]);
   const totalDeduction = amount + fee;
 
-  const fmt = (n: number) => n.toLocaleString('vi-VN');
+  const formatCurrency = (num: number) => {
+    if (num === null || num === undefined || isNaN(num)) return '0';
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  const fmt = (n: number) => {
+    return formatCurrency(n);
+  };
+
   const formatInput = (val: string) => {
     const num = parseInt(val.replace(/\D/g, ''), 10);
     if (isNaN(num) || num === 0) return '';
-    return num.toLocaleString('vi-VN');
+    return formatCurrency(num);
   };
 
   const handleAmountChange = (val: string) => {
@@ -62,12 +78,13 @@ export default function WithdrawScreen() {
     if (!employee) return;
     setLoading(true);
     setError('');
-    const result = await mockApi.processWithdrawal(employee.id, amount);
+    const result = await mockApi.processWithdrawal(employee, amount);
     setLoading(false);
     if (result.success) {
       setShowConfirm(false);
       setSuccess(true);
       setResultData(result.data);
+      setLimit(result.data?.newLimit ?? limit);
       refreshEmployee();
     } else {
       setShowConfirm(false);

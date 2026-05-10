@@ -22,14 +22,13 @@ public class AuthResponse {
         private String id;
         private String name;
         private String phone;
-        // Mocking the salary data to match frontend requirements for Sprint 1
-        private double grossSalary;
+        private long grossSalary;
         private int workingDays;
-        private double advancedAmount;
+        private long advancedAmount;
         private Object linkedBank;
 
-        public static EmployeeResponse fromEntity(Employee employee, double grossSalary, int workingDays,
-                double advancedAmount, Object linkedBank) {
+        public static EmployeeResponse fromEntity(Employee employee, long grossSalary, int workingDays,
+                long advancedAmount, Object linkedBank) {
             return EmployeeResponse.builder()
                     .id(employee.getEmployeeCode()) // Frontend uses code as ID currently
                     .name(employee.getFullName())

@@ -1,0 +1,41 @@
+# Ignore lock files and build logs (Crucial to avoid "deprecated" field errors)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+build.txt
+*.log
+error.txt
+
+# Ignore dependencies
+node_modules/
+**/node_modules/
+target/
+**/target/
+
+# Ignore build artifacts
+.expo/
+**/web-build/
+dist/
+build/
+
+# Ignore IDE and system files
+.git/
+.svn/
+.idea/
+.vscode/
+.DS_Store
+*.log
+
+# Ignore large binary files
+*.zip
+*.tar.gz
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Ignore local env files to keep them private
+.env
+.env.local
+.env.properties

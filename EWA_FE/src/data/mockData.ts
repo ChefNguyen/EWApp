@@ -72,7 +72,7 @@ export const MOCK_BANK_ACCOUNTS: Record<string, string> = {
   'TCB-1111222233': 'NGUYEN VAN A',
   'MB-5555666677': 'LE VAN C',
   'ACB-9999888877': 'PHAM THI D',
-};
+};  
 
 export const MOCK_CARRIERS: Record<string, any> = {
   VIETTEL: {

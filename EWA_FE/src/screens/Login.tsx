@@ -14,26 +14,38 @@ import { RootStackParamList } from '../types';
 
 type LoginNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
-type LoginStep = 'employee' | 'otp';
+type LoginStep = 'employee' | 'otp' | 'password';
 
 export default function LoginScreen({ navigation }: { navigation: LoginNavigationProp }) {
   const { login } = useApp();
   const [step, setStep] = useState<LoginStep>('employee');
   const [employeeCode, setEmployeeCode] = useState('');
+  const [password, setPassword] = useState('');
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [employeeData, setEmployeeData] = useState<any>(null);
   const otpRefs = useRef<(TextInput | null)[]>([]);
+  const passwordRef = useRef<TextInput | null>(null);
 
   const handleValidateEmployee = async () => {
     if (!employeeCode.trim()) { setError('Vui lòng nhập mã nhân viên'); return; }
     setLoading(true);
     setError('');
-    const result = await mockApi.validateEmployee(employeeCode);
+    const result = await mockApi.validateEmployee(employeeCode, password || undefined);
     setLoading(false);
     if (result.success) {
-      setEmployeeData(result.data);
+      const authData = result.data;
+      console.log('Login success data:', JSON.stringify(authData).substring(0, 100) + '...');
+      if (authData?.token && authData?.employee) {
+        console.log('Redirection triggered for employee:', authData.employee.id);
+        const { token, employee: fullEmployee } = authData;
+        const linkedBankId = fullEmployee.linkedBank?.id ?? null;
+        login(token, { ...fullEmployee, token, linkedBankId });
+        return;
+      }
+      console.log('Missing token or employee data, falling back to OTP');
+      setEmployeeData(authData?.employee ?? null);
       setStep('otp');
       setTimeout(() => otpRefs.current[0]?.focus(), 150);
     } else {
@@ -58,13 +70,17 @@ export default function LoginScreen({ navigation }: { navigation: LoginNavigatio
     }
   };
 
-  const handleVerifyOtp = async (otp: string) => {
+  const handleVerifyOtp = async (otp: string, overrideEmployeeCode?: string) => {
+    const verifiedEmployeeCode = overrideEmployeeCode || employeeData?.id;
+    if (!verifiedEmployeeCode) { setError('Phiên đăng nhập hết hạn'); return; }
     setLoading(true);
     setError('');
-    const result = await mockApi.verifyOtp(otp);
+    const result = await mockApi.verifyOtp(verifiedEmployeeCode, otp);
     setLoading(false);
-    if (result.success) {
-      login(employeeData);
+    if (result.success && result.data) {
+      const { token, employee: fullEmployee } = result.data;
+      const linkedBankId = fullEmployee.linkedBank?.id ?? null;
+      login(token, { ...fullEmployee, token, linkedBankId });
     } else {
       setError(result.error || 'Mã OTP không đúng');
       setOtpDigits(['', '', '', '', '', '']);
@@ -112,11 +128,13 @@ export default function LoginScreen({ navigation }: { navigation: LoginNavigatio
             </View>
 
             <View style={styles.otpLinks}>
-              <TouchableOpacity onPress={() => { setStep('employee'); setOtpDigits(['','','','','','']); setError(''); }}>
+              <TouchableOpacity onPress={() => { setStep('employee'); setOtpDigits(['','','','','','']); setPassword(''); setError(''); }}>
                 <Text style={styles.linkText}>Đổi mã nhân viên</Text>
               </TouchableOpacity>
               <Text style={styles.dot}>|</Text>
-              <TouchableOpacity><Text style={styles.linkText}>Gửi lại mã</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => { setStep('password'); setOtpDigits(['','','','','','']); setError(''); }}>
+                <Text style={styles.linkText}>Dùng mật khẩu</Text>
+              </TouchableOpacity>
             </View>
 
             {error ? <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View> : null}
@@ -174,9 +192,32 @@ export default function LoginScreen({ navigation }: { navigation: LoginNavigatio
                 placeholderTextColor={colors.slate300}
                 value={employeeCode}
                 onChangeText={val => { setEmployeeCode(val.toUpperCase()); setError(''); }}
-                onSubmitEditing={handleValidateEmployee}
+                onSubmitEditing={password ? handleValidateEmployee : undefined}
                 autoCapitalize="characters"
                 autoCorrect={false}
+                returnKeyType={password ? 'go' : 'next'}
+              />
+            </View>
+          </View>
+
+          {/* Password Section */}
+          <View style={styles.inputSection}>
+            <View style={styles.passwordRow}>
+              <Text style={styles.inputLabel}>MẬT KHẨU</Text>
+              <TouchableOpacity onPress={() => { setPassword(''); setStep('otp'); setOtpDigits(['','','','','','']); setError(''); }}>
+                <Text style={styles.switchLink}>Đăng nhập bằng OTP</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.inputWrapper}>
+              <MaterialCommunityIcons name="lock-outline" size={24} color={colors.slate400} />
+              <TextInput
+                style={styles.textInput}
+                placeholder="Mật khẩu (tuỳ chọn)"
+                placeholderTextColor={colors.slate300}
+                value={password}
+                onChangeText={val => { setPassword(val); setError(''); }}
+                onSubmitEditing={handleValidateEmployee}
+                secureTextEntry
                 returnKeyType="go"
               />
             </View>
@@ -251,8 +292,10 @@ const styles = StyleSheet.create({
   heading: { fontSize: 32, fontWeight: '900', color: colors.slate900, textAlign: 'center', marginBottom: 16 },
   subheading: { fontSize: 15, color: colors.slate500, textAlign: 'center', lineHeight: 24, marginBottom: 40 },
   
-  inputSection: { width: '100%', marginBottom: 12 },
+  inputSection: { width: '100%', marginBottom: 8 },
   inputLabel: { fontSize: 11, fontWeight: '800', color: colors.slate500, letterSpacing: 1.2, marginBottom: 10, paddingLeft: 4 },
+  passwordRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingLeft: 4 },
+  switchLink: { fontSize: 11, fontWeight: '700', color: colors.indigo600 },
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#eceef0', borderRadius: 40,

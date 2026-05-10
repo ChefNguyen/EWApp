@@ -25,7 +25,11 @@ public class ApplicationConfig {
     @Bean
     public UserDetailsService userDetailsService() {
         return username -> employeeRepository.findByEmployeeCode(username)
-                .map(emp -> new User(emp.getEmployeeCode(), "", Collections.emptyList()))
+                .map(emp -> org.springframework.security.core.userdetails.User.builder()
+                        .username(emp.getEmployeeCode())
+                        .password(emp.getPasswordHash() != null ? emp.getPasswordHash() : "")
+                        .disabled(emp.getStatus() != com.ewa.common.enums.EmployeeStatus.ACTIVE)
+                        .build())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
 

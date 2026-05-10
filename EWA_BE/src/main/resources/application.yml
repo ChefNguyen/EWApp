@@ -1,4 +1,15 @@
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
 spring:
+  config:
+    import: optional:file:.env[.properties]
+
   application:
     name: ewa
 
@@ -24,13 +35,21 @@ spring:
       ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
     show-sql: false
 
+  http:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
 logging:
   level:
+    com.ewa.modules.chat: DEBUG
     org:
       springframework:
         web:
-          servlet: INFO
-          filter: INFO
+          servlet: DEBUG
+          filter: DEBUG
+    com.ewa: DEBUG
 
 management:
   endpoints:
@@ -50,9 +69,20 @@ sepay:
   api-key: ${SEPAY_API_KEY:}
   webhook-secret: ${SEPAY_WEBHOOK_SECRET:}
 
+
+gemini:
+  base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-3.1-flash-lite}
+  max-tokens: ${GEMINI_MAX_TOKENS:500}
+  temperature: ${GEMINI_TEMPERATURE:0.2}
+
 ewa:
   withdrawal:
     provider: ${EWA_WITHDRAWAL_PROVIDER:sepay}
+    # When true, ledger entries are written immediately after SePay mock success
+    # (before webhook). Webhook will skip writing if entry already exists (idempotent).
+    commit-ledger-immediately: ${EWA_WITHDRAWAL_COMMIT_LEDGER_IMMEDIATELY:true}
   utility:
     provider: ${EWA_UTILITY_PROVIDER:mock}
     mock:

@@ -55,4 +55,14 @@ public class BankAccount extends BaseAuditable {
 
     @Column(name = "provider_ref")
     private String providerRef;
+
+    /**
+     * Masked account number for frontend display: show first 4 + *** + last 4.
+     * e.g. "1234567890" → "1234***7890"
+     */
+    public String getMaskedAccountNo() {
+        String acc = accountNoEncrypted;
+        if (acc == null || acc.length() < 8) return acc;
+        return acc.substring(0, 4) + "***" + acc.substring(acc.length() - 4);
+    }
 }

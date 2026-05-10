@@ -50,6 +50,9 @@ public class Employee extends BaseAuditable {
     @Column(name = "status", nullable = false)
     private EmployeeStatus status;
 
+    @Column(name = "password_hash")
+    private String passwordHash;
+
     @Version
     @Column(name = "version")
     private int version;

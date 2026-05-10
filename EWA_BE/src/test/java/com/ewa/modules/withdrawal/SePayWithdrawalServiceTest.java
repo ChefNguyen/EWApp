@@ -1,5 +1,6 @@
 package com.ewa.modules.withdrawal;
 
+import com.ewa.common.config.WithdrawalProperties;
 import com.ewa.common.entity.BankAccount;
 import com.ewa.common.entity.Employee;
 import com.ewa.common.entity.Employer;
@@ -22,6 +23,7 @@ import com.ewa.modules.payment.sepay.SePayClientException;
 import com.ewa.modules.payment.sepay.dto.SePayTransferResponse;
 import com.ewa.modules.withdrawal.dto.WithdrawalRequest;
 import com.ewa.modules.withdrawal.dto.WithdrawalResponse;
+import com.ewa.modules.withdrawal.impl.WithdrawalLedgerService;
 import com.ewa.modules.withdrawal.impl.SePayWithdrawalServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -54,6 +56,8 @@ class SePayWithdrawalServiceTest {
     @Mock private PayrollPeriodRepository payrollPeriodRepository;
     @Mock private AvailableLimitService availableLimitService;
     @Mock private SePayClient sePayClient;
+    @Mock private WithdrawalProperties withdrawalProperties;
+    @Mock private WithdrawalLedgerService withdrawalLedgerService;
 
     @InjectMocks
     private SePayWithdrawalServiceImpl service;
@@ -97,14 +101,13 @@ class SePayWithdrawalServiceTest {
         payrollPeriod.setStatus(PayrollPeriodStatus.OPEN);
 
         request = new WithdrawalRequest();
-        request.setEmployeeCode(EMP_CODE);
         request.setAmountVnd(1_000_000L);
         request.setBankAccountId(BANK_ACCOUNT_ID);
     }
 
     @Test
-    @DisplayName("Success path: should create withdrawal and return PROCESSING status")
-    void createWithdrawal_success() {
+    @DisplayName("Success path (commitLedgerImmediately=true): should commit ledger + return SUCCESS immediately")
+    void createWithdrawal_success_immediateCommit() {
         // Setup mocks
         when(employeeRepository.findByEmployeeCode(EMP_CODE)).thenReturn(Optional.of(employee));
         when(bankAccountRepository.findByIdAndEmployeeEmployeeCode(BANK_ACCOUNT_ID, EMP_CODE))
@@ -114,8 +117,11 @@ class SePayWithdrawalServiceTest {
         when(availableLimitService.calculateAvailableLimit(EMP_CODE, PERIOD_ID))
                 .thenReturn(5_000_000L);
 
-        Withdrawal savedWithdrawal = buildWithdrawal(WithdrawalStatus.CREATED);
-        when(withdrawalRepository.save(any())).thenReturn(savedWithdrawal);
+        Withdrawal createdWithdrawal = buildWithdrawal(WithdrawalStatus.CREATED);
+        Withdrawal successWithdrawal = buildWithdrawal(WithdrawalStatus.SUCCESS);
+        when(withdrawalRepository.save(any()))
+                .thenReturn(createdWithdrawal)
+                .thenReturn(successWithdrawal);
 
         PayoutAttempt savedAttempt = new PayoutAttempt();
         savedAttempt.setId(UUID.randomUUID());
@@ -123,20 +129,61 @@ class SePayWithdrawalServiceTest {
         when(payoutAttemptRepository.save(any())).thenReturn(savedAttempt);
 
         SePayTransferResponse sePayResponse = new SePayTransferResponse();
-        sePayResponse.setTransactionId("SEPAY-TXN-001");
+        sePayResponse.setTransactionId("MOCK-SEPAY-001");
         sePayResponse.setCode("00");
         sePayResponse.setStatus("PENDING");
         when(sePayClient.transfer(any())).thenReturn(sePayResponse);
 
-        // Make second withdrawal.save() return PROCESSING status
+        // commitLedgerImmediately = true → ledger written + SUCCESS
+        when(withdrawalProperties.isCommitLedgerImmediately()).thenReturn(true);
+
+        WithdrawalResponse response = service.createWithdrawal(request, EMP_CODE);
+
+        assertThat(response.getStatus()).isEqualTo(WithdrawalStatus.SUCCESS);
+        assertThat(response.getAmountVnd()).isEqualTo(1_000_000L);
+        assertThat(response.getFeeVnd()).isEqualTo(10_000L);
+        assertThat(response.getTotalDebitVnd()).isEqualTo(1_010_000L);
+        assertThat(response.getMessage()).contains("thành công");
+        verify(withdrawalLedgerService).writeAllEntries(any());
+        verify(sePayClient).transfer(any());
+    }
+
+    @Test
+    @DisplayName("Process path (commitLedgerImmediately=false): should NOT commit ledger, return PROCESSING")
+    void createWithdrawal_processingPath_noImmediateCommit() {
+        when(employeeRepository.findByEmployeeCode(EMP_CODE)).thenReturn(Optional.of(employee));
+        when(bankAccountRepository.findByIdAndEmployeeEmployeeCode(BANK_ACCOUNT_ID, EMP_CODE))
+                .thenReturn(Optional.of(bankAccount));
+        when(payrollPeriodRepository.findTopByEmployerIdAndStatusOrderByStartDateDesc(EMPLOYER_ID, PayrollPeriodStatus.OPEN))
+                .thenReturn(Optional.of(payrollPeriod));
+        when(availableLimitService.calculateAvailableLimit(EMP_CODE, PERIOD_ID))
+                .thenReturn(5_000_000L);
+
+        Withdrawal createdWithdrawal = buildWithdrawal(WithdrawalStatus.CREATED);
         Withdrawal processingWithdrawal = buildWithdrawal(WithdrawalStatus.PROCESSING);
-        when(withdrawalRepository.save(any())).thenReturn(savedWithdrawal, processingWithdrawal);
+        when(withdrawalRepository.save(any()))
+                .thenReturn(createdWithdrawal)
+                .thenReturn(processingWithdrawal);
+
+        PayoutAttempt savedAttempt = new PayoutAttempt();
+        savedAttempt.setId(UUID.randomUUID());
+        savedAttempt.setStatus(PayoutAttemptStatus.INIT);
+        when(payoutAttemptRepository.save(any())).thenReturn(savedAttempt);
+
+        SePayTransferResponse sePayResponse = new SePayTransferResponse();
+        sePayResponse.setTransactionId("SEPAY-TXN-002");
+        sePayResponse.setCode("00");
+        sePayResponse.setStatus("PENDING");
+        when(sePayClient.transfer(any())).thenReturn(sePayResponse);
+
+        // commitLedgerImmediately = false → ledger NOT written, stays PROCESSING
+        when(withdrawalProperties.isCommitLedgerImmediately()).thenReturn(false);
 
         WithdrawalResponse response = service.createWithdrawal(request, EMP_CODE);
 
         assertThat(response.getStatus()).isEqualTo(WithdrawalStatus.PROCESSING);
-        assertThat(response.getAmountVnd()).isEqualTo(1_000_000L);
-        verify(sePayClient).transfer(any());
+        assertThat(response.getMessage()).contains("đang xử lý");
+        verify(withdrawalLedgerService, org.mockito.Mockito.never()).writeAllEntries(any());
     }
 
     @Test
@@ -224,10 +271,10 @@ class SePayWithdrawalServiceTest {
         w.setPayrollPeriod(payrollPeriod);
         w.setBankAccount(bankAccount);
         w.setAmountRequestedVnd(1_000_000L);
-        w.setFeeVnd(0L);
-        w.setTotalDebitVnd(1_000_000L);
+        w.setFeeVnd(10_000L); // <= 1M → 10k fee
+        w.setTotalDebitVnd(1_010_000L);
         w.setNetAmountVnd(1_000_000L);
-        w.setFeePolicyCode("ZERO_FEE");
+        w.setFeePolicyCode("STANDARD");
         w.setStatus(status);
         w.setIdempotencyKey("WD-" + EMP_CODE + "-test");
         return w;

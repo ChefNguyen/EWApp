@@ -1,5 +1,6 @@
 package com.ewa.modules.withdrawal.impl;
 
+import com.ewa.common.config.WithdrawalProperties;
 import com.ewa.common.entity.BankAccount;
 import com.ewa.common.entity.Employee;
 import com.ewa.common.entity.PayoutAttempt;
@@ -40,9 +41,15 @@ import java.util.stream.Collectors;
 @ConditionalOnProperty(name = "ewa.withdrawal.provider", havingValue = "sepay", matchIfMissing = true)
 public class SePayWithdrawalServiceImpl implements WithdrawalService {
 
-    // Fee policy: 0 VND for sandbox (configurable later)
-    private static final long FEE_VND = 0L;
-    private static final String FEE_POLICY_CODE = "ZERO_FEE";
+    // Fee policy: 10k for <= 1M, 20k for > 1M
+    private static final long FEE_THRESHOLD_VND = 1_000_000L;
+    private static final long FEE_UNDER_1M = 10_000L;
+    private static final long FEE_ABOVE_1M = 20_000L;
+    private static final String FEE_POLICY_STANDARD = "STANDARD";
+
+    static long calculateFee(long amountVnd) {
+        return amountVnd <= FEE_THRESHOLD_VND ? FEE_UNDER_1M : FEE_ABOVE_1M;
+    }
 
     private final EmployeeRepository employeeRepository;
     private final BankAccountRepository bankAccountRepository;
@@ -51,6 +58,8 @@ public class SePayWithdrawalServiceImpl implements WithdrawalService {
     private final PayrollPeriodRepository payrollPeriodRepository;
     private final AvailableLimitService availableLimitService;
     private final SePayClient sePayClient;
+    private final WithdrawalProperties withdrawalProperties;
+    private final WithdrawalLedgerService withdrawalLedgerService;
 
     @Override
     @Transactional
@@ -62,7 +71,11 @@ public class SePayWithdrawalServiceImpl implements WithdrawalService {
         // 2. Validate bank account ownership
         BankAccount bankAccount = bankAccountRepository
                 .findByIdAndEmployeeEmployeeCode(request.getBankAccountId(), employeeCode)
-                .orElseThrow(() -> new IllegalArgumentException("Tài khoản ngân hàng không hợp lệ hoặc không thuộc nhân viên này"));
+                .orElseGet(() -> bankAccountRepository.findByEmployeeEmployeeCodeOrderByCreatedAtDesc(employeeCode)
+                        .stream()
+                        .filter(account -> account.getStatus() == BankAccountStatus.VERIFIED)
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException("Tài khoản ngân hàng không hợp lệ hoặc không thuộc nhân viên này")));
 
         if (bankAccount.getStatus() != BankAccountStatus.VERIFIED) {
             throw new IllegalStateException("Tài khoản ngân hàng chưa được xác minh hoặc đã bị khoá");
@@ -76,12 +89,13 @@ public class SePayWithdrawalServiceImpl implements WithdrawalService {
 
         // 4. Check available limit
         long available = availableLimitService.calculateAvailableLimit(employeeCode, payrollPeriod.getId());
-        long totalDebit = request.getAmountVnd() + FEE_VND;
+        long feeVnd = calculateFee(request.getAmountVnd());
+        long totalDebit = request.getAmountVnd() + feeVnd;
 
         if (totalDebit > available) {
             throw new IllegalStateException(
-                    String.format("Số tiền vượt hạn mức. Hạn mức còn lại: %d VND, yêu cầu: %d VND",
-                            available, totalDebit));
+                    String.format("Số tiền vượt hạn mức. Hạn mức còn lại: %d VND, yêu cầu: %d VND (gồm phí %d VND)",
+                            available, totalDebit, feeVnd));
         }
 
         // 5. Create Withdrawal with idempotency key
@@ -92,10 +106,10 @@ public class SePayWithdrawalServiceImpl implements WithdrawalService {
         withdrawal.setPayrollPeriod(payrollPeriod);
         withdrawal.setBankAccount(bankAccount);
         withdrawal.setAmountRequestedVnd(request.getAmountVnd());
-        withdrawal.setFeeVnd(FEE_VND);
-        withdrawal.setTotalDebitVnd(totalDebit);
+        withdrawal.setFeeVnd(feeVnd);
         withdrawal.setNetAmountVnd(request.getAmountVnd());
-        withdrawal.setFeePolicyCode(FEE_POLICY_CODE);
+        withdrawal.setTotalDebitVnd(totalDebit);
+        withdrawal.setFeePolicyCode(FEE_POLICY_STANDARD);
         withdrawal.setStatus(WithdrawalStatus.CREATED);
         withdrawal.setIdempotencyKey(idempotencyKey);
         withdrawal = withdrawalRepository.save(withdrawal);
@@ -125,7 +139,7 @@ public class SePayWithdrawalServiceImpl implements WithdrawalService {
 
             SePayTransferResponse sePayResponse = sePayClient.transfer(sePayRequest);
 
-            // 8. Update attempt → SENT, withdrawal → PROCESSING
+            // 8. Update attempt → SENT
             String externalTxnId = sePayResponse.getTransactionId() != null
                     ? sePayResponse.getTransactionId()
                     : "UNKNOWN-" + idempotencyKey;
@@ -134,6 +148,18 @@ public class SePayWithdrawalServiceImpl implements WithdrawalService {
             attempt.setSentAt(Instant.now());
             payoutAttemptRepository.save(attempt);
 
+            // 9. Commit ledger + mark SUCCESS immediately (local mock / no webhook)
+            //    Webhook will be idempotent guard if called later.
+            if (withdrawalProperties.isCommitLedgerImmediately()) {
+                withdrawalLedgerService.writeAllEntries(withdrawal);
+                withdrawal.setStatus(WithdrawalStatus.SUCCESS);
+                withdrawal = withdrawalRepository.save(withdrawal);
+                log.info("[Withdrawal] SUCCESS (immediate commit) withdrawalId={} externalTxnId={}",
+                        withdrawal.getId(), externalTxnId);
+                return buildResponse(withdrawal, externalTxnId, "Rút lương thành công");
+            }
+
+            // 10. Real SePay path: withdrawal stays PROCESSING, webhook will finalize
             withdrawal.setStatus(WithdrawalStatus.PROCESSING);
             withdrawal = withdrawalRepository.save(withdrawal);
 

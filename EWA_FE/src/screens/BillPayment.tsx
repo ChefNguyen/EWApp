@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
   KeyboardAvoidingView, Platform, ActivityIndicator, Image
@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import * as mockApi from '../services/mockApi';
 import { BillData } from '../types';
@@ -30,6 +30,8 @@ export default function BillPaymentScreen() {
   const navigation = useNavigation();
   const { employee, refreshEmployee } = useApp();
   const [serviceType, setServiceType] = useState<ServiceType>('ELECTRIC');
+  const [limit, setLimit] = useState(0);
+  const [billFee, setBillFee] = useState(0);
   const [customerId, setCustomerId] = useState('');
   const [billData, setBillData] = useState<BillData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -38,8 +40,26 @@ export default function BillPaymentScreen() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const limit = useMemo(() => employee ? mockApi.calculateLimit(employee) : 0, [employee]);
-  const fmt = (n: number) => n.toLocaleString('vi-VN');
+  const fmt = (n: number) => {
+    if (n === null || n === undefined || isNaN(n)) return '0';
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!employee?.token) return;
+      mockApi.getAvailableLimit(employee).then(setLimit);
+    }, [employee?.token])
+  );
+
+  const totalBillDebit = useMemo(() => (billData?.amount || 0) + billFee, [billData?.amount, billFee]);
+
+  const estimateBillFee = useCallback((amount: number) => {
+    let fee = 0;
+    if (amount > 500000) fee += 10000;
+    if (amount > 1000000) fee += 20000;
+    return fee;
+  }, []);
 
   const handleLookup = async (typeOverride?: ServiceType, idOverride?: string) => {
     const sType = typeOverride || serviceType;
@@ -60,6 +80,7 @@ export default function BillPaymentScreen() {
       console.log('Bill data received:', billDataWithKey);
       console.log('Bill status:', billDataWithKey.status);
       console.log('Should show button:', billDataWithKey.status === 'UNPAID');
+      setBillFee(estimateBillFee(billDataWithKey.amount));
       setBillData(billDataWithKey);
     } else {
       setError(result.error || 'Không tìm thấy hóa đơn');
@@ -71,9 +92,9 @@ export default function BillPaymentScreen() {
       setError('Không có thông tin hóa đơn');
       return;
     }
-    if (billData.amount > limit) { 
-      setError(`Số tiền (${fmt(billData.amount)}đ) vượt hạn mức (${fmt(limit)}đ)`); 
-      return; 
+    if (totalBillDebit > limit) {
+      setError(`Tổng thanh toán (${fmt(totalBillDebit)}đ) vượt hạn mức (${fmt(limit)}đ)`);
+      return;
     }
     setError(''); // Clear any existing errors
     setShowConfirm(true);
@@ -100,12 +121,14 @@ export default function BillPaymentScreen() {
     console.log('Paying bill with key:', billData.billKey);
     
     try {
-      const result = await mockApi.payBill(employee.id, billData.billKey);
+      const result = await mockApi.payBill(employee, billData.billKey);
       setPaying(false);
       
       if (result.success) {
         setShowConfirm(false);
         setSuccess(true);
+        setLimit(result.data?.newLimit ?? limit);
+        setBillFee(result.data?.billFeeVnd ?? billFee);
         refreshEmployee();
       } else {
         setShowConfirm(false);
@@ -157,7 +180,8 @@ export default function BillPaymentScreen() {
           amountLabel="Số tiền thanh toán"
           amount={`${fmt(billData?.amount || 0)} đ`}
           breakdown={[
-            { label: 'Phí dịch vụ', value: 'Miễn phí' },
+            { label: 'Phí dịch vụ', value: `${fmt(billFee)} đ` },
+            { label: 'Tổng trừ hạn mức', value: `${fmt(totalBillDebit)} đ` },
           ]}
           meta={[
             { label: 'Mã giao dịch', value: txId },
@@ -295,7 +319,9 @@ export default function BillPaymentScreen() {
                         <Text style={styles.amountText}>{fmt(billData.amount)}</Text>
                         <Text style={styles.amountCurrency}>đ</Text>
                       </View>
-                      {billData.amount > limit && (
+                      <Text style={[styles.detailLabel, { marginTop: 6 }]}>Phí dịch vụ: {fmt(billFee)}đ</Text>
+                      <Text style={[styles.detailValue, { marginTop: 2 }]}>Tổng trừ hạn mức: {fmt(totalBillDebit)}đ</Text>
+                      {totalBillDebit > limit && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
                           <Feather name="alert-circle" size={12} color={colors.red500} />
                           <Text style={styles.limitError}>Vượt hạn mức ({fmt(limit)}đ)</Text>
@@ -308,8 +334,8 @@ export default function BillPaymentScreen() {
                       <View style={{ marginTop: 16 }}>
                         <TouchableOpacity
                           onPress={handleShowConfirm}
-                          disabled={billData.amount > limit || billData.amount === 0}
-                          style={[styles.payBtn, (billData.amount > limit || billData.amount === 0) && { opacity: 0.4 }]}
+                          disabled={totalBillDebit > limit || billData.amount === 0}
+                          style={[styles.payBtn, (totalBillDebit > limit || billData.amount === 0) && { opacity: 0.4 }]}
                           activeOpacity={0.85}
                         >
                           <LinearGradient colors={[colors.primary, colors.indigo400]} style={styles.payGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>

@@ -20,6 +20,8 @@ export default function TopUpScreen() {
   const { employee, refreshEmployee } = useApp();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedDenom, setSelectedDenom] = useState<number | null>(null);
+  const [limit, setLimit] = useState(0);
+  const [loadingLimit, setLoadingLimit] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
@@ -27,15 +29,14 @@ export default function TopUpScreen() {
   const [resultData, setResultData] = useState<any>(null);
 
   useEffect(() => {
-    if (employee) {
-      setPhoneNumber(employee.phone);
-    }
-  }, [employee]);
-
-  const limit = useMemo(() => {
-    if (!employee) return 0;
-    return mockApi.calculateLimit(employee);
-  }, [employee]);
+    if (!employee?.token) return;
+    setPhoneNumber(employee.phone);
+    setLoadingLimit(true);
+    mockApi.getAvailableLimit(employee).then(res => {
+      setLimit(res);
+      setLoadingLimit(false);
+    });
+  }, [employee?.token]);
 
   const carrierInfo = useMemo(() => {
     const cleaned = phoneNumber.replace(/\D/g, '');
@@ -45,9 +46,9 @@ export default function TopUpScreen() {
     return null;
   }, [phoneNumber]);
 
-  const fmt = (n: number | null | undefined) => {
-    if (n == null) return '0';
-    return n.toLocaleString('vi-VN');
+  const fmt = (n: number) => {
+    if (n === null || n === undefined || isNaN(n)) return '0';
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   };
 
   const formatPhone = (val: string) => {
@@ -75,12 +76,13 @@ export default function TopUpScreen() {
     if (!employee || !selectedDenom) return;
     setLoading(true);
     setError('');
-    const result = await mockApi.processTopup(employee.id, phoneNumber.replace(/\D/g, ''), selectedDenom);
+    const result = await mockApi.processTopup(employee, phoneNumber.replace(/\D/g, ''), selectedDenom);
     setLoading(false);
     if (result.success) {
       setShowConfirm(false);
       setSuccess(true);
       setResultData(result.data);
+      setLimit(result.data?.newLimit ?? limit);
       refreshEmployee();
     } else {
       setShowConfirm(false);

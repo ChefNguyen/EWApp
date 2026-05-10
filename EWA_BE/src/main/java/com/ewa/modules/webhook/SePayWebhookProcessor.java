@@ -1,20 +1,17 @@
 package com.ewa.modules.webhook;
 
-import com.ewa.common.entity.LedgerEntry;
 import com.ewa.common.entity.PayoutAttempt;
 import com.ewa.common.entity.WebhookEvent;
 import com.ewa.common.entity.Withdrawal;
-import com.ewa.common.enums.LedgerEntryType;
-import com.ewa.common.enums.LedgerReferenceType;
 import com.ewa.common.enums.PaymentProvider;
 import com.ewa.common.enums.PayoutAttemptStatus;
 import com.ewa.common.enums.WebhookProcessStatus;
 import com.ewa.common.enums.WithdrawalStatus;
-import com.ewa.common.repository.LedgerEntryRepository;
 import com.ewa.common.repository.PayoutAttemptRepository;
 import com.ewa.common.repository.WebhookEventRepository;
 import com.ewa.common.repository.WithdrawalRepository;
 import com.ewa.modules.payment.sepay.dto.SePayWebhookPayload;
+import com.ewa.modules.withdrawal.impl.WithdrawalLedgerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,7 +29,7 @@ public class SePayWebhookProcessor {
     private final WebhookEventRepository webhookEventRepository;
     private final PayoutAttemptRepository payoutAttemptRepository;
     private final WithdrawalRepository withdrawalRepository;
-    private final LedgerEntryRepository ledgerEntryRepository;
+    private final WithdrawalLedgerService withdrawalLedgerService;
 
     /**
      * Processes a SePay webhook payload in a single transaction.
@@ -101,11 +98,8 @@ public class SePayWebhookProcessor {
                 attempt.setStatus(PayoutAttemptStatus.SETTLED);
                 withdrawal.setStatus(WithdrawalStatus.SUCCESS);
 
-                // Step 5 – write ledger entries (idempotent via unique constraint)
-                writeLedgerEntry(withdrawal, LedgerEntryType.WITHDRAW_DEBIT, withdrawal.getAmountRequestedVnd());
-                if (withdrawal.getFeeVnd() > 0) {
-                    writeLedgerEntry(withdrawal, LedgerEntryType.FEE_DEBIT, withdrawal.getFeeVnd());
-                }
+                // Write ledger entries via central service (idempotent guard)
+                withdrawalLedgerService.writeAllEntries(withdrawal);
 
                 log.info("[Webhook] Withdrawal SUCCESS withdrawalId={} externalTxnId={}",
                         withdrawal.getId(), externalTxnId);
@@ -134,28 +128,5 @@ public class SePayWebhookProcessor {
             webhookEventRepository.save(event);
             throw e;
         }
-    }
-
-    private void writeLedgerEntry(Withdrawal withdrawal, LedgerEntryType type, long amount) {
-        // Skip if already recorded (unique constraint guard)
-        boolean exists = ledgerEntryRepository
-                .existsByEntryTypeAndReferenceTypeAndReferenceId(type, LedgerReferenceType.WITHDRAWAL, withdrawal.getId());
-        if (exists) {
-            log.debug("[Webhook] Ledger entry already exists type={} withdrawalId={}", type, withdrawal.getId());
-            return;
-        }
-
-        LedgerEntry entry = new LedgerEntry();
-        entry.setEmployer(withdrawal.getEmployer());
-        entry.setEmployee(withdrawal.getEmployee());
-        entry.setPayrollPeriod(withdrawal.getPayrollPeriod());
-        entry.setEntryType(type);
-        entry.setAmountVnd(amount);
-        entry.setReferenceType(LedgerReferenceType.WITHDRAWAL);
-        entry.setReferenceId(withdrawal.getId());
-        entry.setOccurredAt(Instant.now());
-        ledgerEntryRepository.save(entry);
-
-        log.info("[Webhook] LedgerEntry saved type={} amount={} withdrawalId={}", type, amount, withdrawal.getId());
     }
 }

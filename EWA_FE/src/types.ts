@@ -1,19 +1,23 @@
-export type Screen = 'login' | 'dashboard' | 'withdraw' | 'topup' | 'history' | 'bill' | 'link-bank' | 'offers' | 'profile';
+export type Screen = 'login' | 'dashboard' | 'withdraw' | 'topup' | 'history' | 'bill' | 'link-bank' | 'offers' | 'profile' | 'chat';
 
 export interface BankInfo {
+  id?: string;
   bankCode: string;
   accountNo: string;
+  maskedAccountNo?: string;
   accountName: string;
 }
 
 export interface Employee {
   id: string;
+  token: string;
   name: string;
   phone: string;
   grossSalary: number;
   workingDays: number;
   advancedAmount: number;
   linkedBank: BankInfo | null;
+  linkedBankId: string | null;
 }
 
 export interface Transaction {
@@ -60,11 +64,12 @@ export type RootStackParamList = {
   TopUp: undefined;
   BillPayment: undefined;
   LinkBank: undefined;
+  Offers: undefined;
+  History: undefined;
+  Profile: undefined;
+  Chat: undefined;
 };
 
 export type TabParamList = {
   Dashboard: undefined;
-  Offers: undefined;
-  History: undefined;
-  Profile: undefined;
 };

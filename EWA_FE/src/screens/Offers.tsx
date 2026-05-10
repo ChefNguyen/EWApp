@@ -156,7 +156,7 @@ export default function OffersScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 24, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: 24, paddingBottom: 120 },
   intro: { marginTop: 24, marginBottom: 24 },
   mainTitle: { fontSize: 32, fontWeight: '900', color: '#4338ca' },
   mainDesc: { fontSize: 14, color: colors.slate600, marginTop: 8, lineHeight: 20 },

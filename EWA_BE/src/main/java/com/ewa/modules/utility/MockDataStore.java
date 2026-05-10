@@ -25,8 +25,13 @@ public class MockDataStore {
             Map.entry("032", "Viettel"), Map.entry("033", "Viettel"), Map.entry("034", "Viettel"),
             Map.entry("035", "Viettel"), Map.entry("036", "Viettel"), Map.entry("037", "Viettel"),
             Map.entry("038", "Viettel"), Map.entry("039", "Viettel"),
+            Map.entry("086", "Viettel"), Map.entry("096", "Viettel"), Map.entry("097", "Viettel"), Map.entry("098", "Viettel"),
             Map.entry("070", "Mobifone"), Map.entry("076", "Mobifone"), Map.entry("077", "Mobifone"),
             Map.entry("078", "Mobifone"), Map.entry("079", "Mobifone"),
+            Map.entry("089", "Mobifone"), Map.entry("090", "Mobifone"), Map.entry("093", "Mobifone"),
+            Map.entry("081", "Vinaphone"), Map.entry("082", "Vinaphone"), Map.entry("083", "Vinaphone"),
+            Map.entry("084", "Vinaphone"), Map.entry("085", "Vinaphone"), Map.entry("088", "Vinaphone"),
+            Map.entry("091", "Vinaphone"), Map.entry("094", "Vinaphone"),
             Map.entry("056", "Vietnamobile"), Map.entry("058", "Vietnamobile"),
             Map.entry("059", "Gmobile")
     );
@@ -37,13 +42,13 @@ public class MockDataStore {
      */
     @Getter
     private final Map<String, BillRecord> bills = Map.of(
-            "ELEC-001", new BillRecord("ELEC-001", "electricity", "EVN001",
+            "ELEC-001", new BillRecord("ELEC-001", "ELECTRIC", "EVN001",
                     "Nguyễn Văn A", "123 Lê Lợi, Q1, HCM", 350_000L, "05/2025", "UNPAID"),
-            "ELEC-002", new BillRecord("ELEC-002", "electricity", "EVN002",
+            "ELEC-002", new BillRecord("ELEC-002", "ELECTRIC", "EVN002",
                     "Trần Thị B", "456 Trần Hưng Đạo, Q5, HCM", 520_000L, "05/2025", "UNPAID"),
-            "WATER-001", new BillRecord("WATER-001", "water", "SAWACO001",
+            "WATER-001", new BillRecord("WATER-001", "WATER", "SAWACO001",
                     "Lê Văn C", "789 Nguyễn Trãi, Q1, HCM", 180_000L, "05/2025", "UNPAID"),
-            "INTERNET-001", new BillRecord("INTERNET-001", "internet", "VNPT001",
+            "INTERNET-001", new BillRecord("INTERNET-001", "INTERNET", "VNPT001",
                     "Phạm Thị D", "321 Hai Bà Trưng, Q3, HCM", 250_000L, "05/2025", "UNPAID")
     );
 

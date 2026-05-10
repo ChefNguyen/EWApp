@@ -5,10 +5,12 @@ import com.ewa.common.entity.PayPolicy;
 import com.ewa.common.entity.PayrollPeriod;
 import com.ewa.common.enums.LedgerEntryType;
 import com.ewa.common.enums.PayrollPeriodStatus;
+import com.ewa.common.enums.WithdrawalStatus;
 import com.ewa.common.repository.EmployeeRepository;
 import com.ewa.common.repository.LedgerEntryRepository;
 import com.ewa.common.repository.PayPolicyRepository;
 import com.ewa.common.repository.PayrollPeriodRepository;
+import com.ewa.common.repository.WithdrawalRepository;
 import com.ewa.common.repository.WorkEntryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,10 @@ public class AvailableLimitService {
     private final PayPolicyRepository payPolicyRepository;
     private final WorkEntryRepository workEntryRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
+    private final WithdrawalRepository withdrawalRepository;
+
+    private static final Set<WithdrawalStatus> PENDING_WITHDRAWAL_STATUSES =
+            EnumSet.of(WithdrawalStatus.CREATED, WithdrawalStatus.PROCESSING);
 
     public long calculateAvailableLimit(String employeeCode) {
         Employee employee = employeeRepository.findByEmployeeCode(employeeCode)
@@ -75,7 +81,12 @@ public class AvailableLimitService {
                 .sumAmountVndByEmployeeAndPayrollPeriodAndTypes(employee.getId(), payrollPeriod.getId(), USED_LIMIT_TYPES)
                 .orElse(0L);
 
-        long rawAvailable = earnedAmount - totalUsed;
+        // Also subtract pending withdrawals (CREATED/PROCESSING) that already deducted limit
+        // but have not yet produced a LedgerEntry (waiting for webhook).
+        long pendingWithdrawalDebit = withdrawalRepository
+                .sumPendingWithdrawalDebits(employee.getId(), payrollPeriod.getId(), PENDING_WITHDRAWAL_STATUSES);
+
+        long rawAvailable = earnedAmount - totalUsed - pendingWithdrawalDebit;
         if (rawAvailable <= 0) {
             return 0L;
         }

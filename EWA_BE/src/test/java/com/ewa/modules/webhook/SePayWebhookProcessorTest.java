@@ -3,24 +3,21 @@ package com.ewa.modules.webhook;
 import com.ewa.common.entity.BankAccount;
 import com.ewa.common.entity.Employee;
 import com.ewa.common.entity.Employer;
-import com.ewa.common.entity.LedgerEntry;
 import com.ewa.common.entity.PayoutAttempt;
 import com.ewa.common.entity.PayrollPeriod;
 import com.ewa.common.entity.Withdrawal;
 import com.ewa.common.entity.WebhookEvent;
 import com.ewa.common.enums.BankAccountStatus;
-import com.ewa.common.enums.LedgerEntryType;
-import com.ewa.common.enums.LedgerReferenceType;
 import com.ewa.common.enums.PaymentProvider;
 import com.ewa.common.enums.PayoutAttemptStatus;
 import com.ewa.common.enums.PayrollPeriodStatus;
 import com.ewa.common.enums.WebhookProcessStatus;
 import com.ewa.common.enums.WithdrawalStatus;
-import com.ewa.common.repository.LedgerEntryRepository;
 import com.ewa.common.repository.PayoutAttemptRepository;
 import com.ewa.common.repository.WebhookEventRepository;
 import com.ewa.common.repository.WithdrawalRepository;
 import com.ewa.modules.payment.sepay.dto.SePayWebhookPayload;
+import com.ewa.modules.withdrawal.impl.WithdrawalLedgerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -49,7 +46,7 @@ class SePayWebhookProcessorTest {
     @Mock private WebhookEventRepository webhookEventRepository;
     @Mock private PayoutAttemptRepository payoutAttemptRepository;
     @Mock private WithdrawalRepository withdrawalRepository;
-    @Mock private LedgerEntryRepository ledgerEntryRepository;
+    @Mock private WithdrawalLedgerService withdrawalLedgerService;
 
     @InjectMocks
     private SePayWebhookProcessor processor;
@@ -104,8 +101,8 @@ class SePayWebhookProcessorTest {
     }
 
     @Test
-    @DisplayName("Success webhook: should update withdrawal to SUCCESS and write 2 ledger entries for amount+fee")
-    void process_success_writesTwoLedgerEntries() {
+    @DisplayName("Success webhook: should update withdrawal to SUCCESS and call WithdrawalLedgerService")
+    void process_success_callsLedgerService() {
         // Setup
         when(webhookEventRepository.save(any())).thenReturn(savedEvent);
         when(webhookEventRepository.countByProviderAndExternalTxnIdAndEventTypeAndProcessStatus(
@@ -113,8 +110,6 @@ class SePayWebhookProcessorTest {
                 .thenReturn(0L);
         when(payoutAttemptRepository.findByProviderAndExternalTxnId(PaymentProvider.SEPAY, EXT_TXN_ID))
                 .thenReturn(Optional.of(payoutAttempt));
-        when(ledgerEntryRepository.existsByEntryTypeAndReferenceTypeAndReferenceId(
-                any(), any(), any())).thenReturn(false);
 
         // Withdrawal with fee=10000 to trigger FEE_DEBIT entry too
         withdrawal.setFeeVnd(10_000L);
@@ -124,17 +119,8 @@ class SePayWebhookProcessorTest {
 
         processor.process(payload, "sig-abc", "{\"id\":\"SEPAY-TXN-001\"}");
 
-        // Verify ledger writes: WITHDRAW_DEBIT + FEE_DEBIT
-        ArgumentCaptor<LedgerEntry> ledgerCaptor = ArgumentCaptor.forClass(LedgerEntry.class);
-        verify(ledgerEntryRepository, times(2)).save(ledgerCaptor.capture());
-
-        var entries = ledgerCaptor.getAllValues();
-        assertThat(entries).extracting(LedgerEntry::getEntryType)
-                .containsExactlyInAnyOrder(LedgerEntryType.WITHDRAW_DEBIT, LedgerEntryType.FEE_DEBIT);
-        assertThat(entries).extracting(LedgerEntry::getReferenceType)
-                .allMatch(t -> t == LedgerReferenceType.WITHDRAWAL);
-        assertThat(entries).extracting(LedgerEntry::getReferenceId)
-                .allMatch(id -> id.equals(WITHDRAWAL_ID));
+        // Verify ledger service is called (idempotent – no double-write concern here)
+        verify(withdrawalLedgerService).writeAllEntries(withdrawal);
 
         // Verify withdrawal updated to SUCCESS
         ArgumentCaptor<Withdrawal> withdrawalCaptor = ArgumentCaptor.forClass(Withdrawal.class);
@@ -143,7 +129,7 @@ class SePayWebhookProcessorTest {
     }
 
     @Test
-    @DisplayName("Duplicate webhook: should be IGNORED and NOT create duplicate ledger entries")
+    @DisplayName("Duplicate webhook: should be IGNORED and NOT call ledger service")
     void process_duplicate_marksIgnored() {
         when(webhookEventRepository.save(any())).thenReturn(savedEvent);
         when(webhookEventRepository.countByProviderAndExternalTxnIdAndEventTypeAndProcessStatus(
@@ -154,8 +140,8 @@ class SePayWebhookProcessorTest {
 
         processor.process(payload, "sig-abc", "{}");
 
-        // Should NOT write any ledger entries
-        verify(ledgerEntryRepository, never()).save(any());
+        // Should NOT call ledger service
+        verify(withdrawalLedgerService, never()).writeAllEntries(any());
         verify(withdrawalRepository, never()).save(any());
 
         // Should mark event IGNORED
@@ -166,7 +152,7 @@ class SePayWebhookProcessorTest {
     }
 
     @Test
-    @DisplayName("Unknown externalTxnId: should mark webhook event FAILED and NOT create ledger entries")
+    @DisplayName("Unknown externalTxnId: should mark webhook event FAILED and NOT call ledger service")
     void process_unknownExternalTxnId_marksFailed() {
         when(webhookEventRepository.save(any())).thenReturn(savedEvent);
         when(webhookEventRepository.countByProviderAndExternalTxnIdAndEventTypeAndProcessStatus(
@@ -179,7 +165,7 @@ class SePayWebhookProcessorTest {
 
         processor.process(payload, null, "{}");
 
-        verify(ledgerEntryRepository, never()).save(any());
+        verify(withdrawalLedgerService, never()).writeAllEntries(any());
         verify(withdrawalRepository, never()).save(any());
 
         // Event should be FAILED
@@ -190,7 +176,7 @@ class SePayWebhookProcessorTest {
     }
 
     @Test
-    @DisplayName("Failed webhook: should mark withdrawal FAILED, NOT write ledger entries")
+    @DisplayName("Failed webhook: should mark withdrawal FAILED, NOT call ledger service")
     void process_sePayFailure_marksWithdrawalFailed() {
         when(webhookEventRepository.save(any())).thenReturn(savedEvent);
         when(webhookEventRepository.countByProviderAndExternalTxnIdAndEventTypeAndProcessStatus(
@@ -203,7 +189,7 @@ class SePayWebhookProcessorTest {
 
         processor.process(payload, null, "{}");
 
-        verify(ledgerEntryRepository, never()).save(any());
+        verify(withdrawalLedgerService, never()).writeAllEntries(any());
 
         ArgumentCaptor<Withdrawal> withdrawalCaptor = ArgumentCaptor.forClass(Withdrawal.class);
         verify(withdrawalRepository).save(withdrawalCaptor.capture());

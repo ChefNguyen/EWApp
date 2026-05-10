@@ -73,13 +73,12 @@ export default function HistoryScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (employee) {
-      setLoading(true);
-      mockApi.getTransactionHistory(employee.id).then(res => {
-        setTransactions(res.data as Transaction[]);
-        setLoading(false);
-      });
-    }
+    if (!employee) return;
+    setLoading(true);
+    mockApi.getTransactionHistory(employee).then(res => {
+      setTransactions(res.data as Transaction[]);
+      setLoading(false);
+    });
   }, [employee]);
 
   const sections = useMemo(() => {
@@ -97,7 +96,10 @@ export default function HistoryScreen() {
     return Object.values(groups);
   }, [transactions, filter]);
 
-  const fmt = (n: number) => n.toLocaleString('vi-VN');
+  const fmt = (n: number) => {
+    if (n === null || n === undefined || isNaN(n)) return '0';
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
 
   const renderTransaction = ({ item }: { item: Transaction }) => {
     const icon = getTransactionIcon(item.type);
@@ -208,7 +210,7 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { paddingBottom: 100 },
+  listContent: { paddingBottom: 120 },
   header: { paddingVertical: 16, paddingHorizontal: 24 },
   tabs: { gap: 12 },
   tab: {

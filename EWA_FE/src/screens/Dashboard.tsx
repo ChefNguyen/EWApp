@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useApp } from '../context/AppContext';
 import * as mockApi from '../services/mockApi';
@@ -17,24 +17,45 @@ type DashboardNav = StackNavigationProp<RootStackParamList>;
 
 export default function DashboardScreen() {
   const navigation = useNavigation<DashboardNav>();
-  const { employee, refreshEmployee, logout } = useApp();
+  const { employee, logout } = useApp();
   const [limit, setLimit] = useState(0);
+  const [loadingLimit, setLoadingLimit] = useState(true);
 
-  useEffect(() => { refreshEmployee(); }, []);
   useEffect(() => {
-    if (employee) setLimit(mockApi.calculateLimit(employee));
-  }, [employee]);
+    if (!employee?.token) return;
+    setLoadingLimit(true);
+    mockApi.getAvailableLimit(employee).then(res => {
+      setLimit(res);
+      setLoadingLimit(false);
+    });
+  }, [employee?.token]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!employee?.token) return;
+      mockApi.getAvailableLimit(employee).then(setLimit);
+    }, [employee?.token])
+  );
 
   if (!employee) return null;
 
-  const dailyRate = employee.grossSalary / 22;
-  const earnedSalary = Math.floor(dailyRate * employee.workingDays);
-  const workProgress = Math.round((employee.workingDays / 22) * 100);
   const hasLinkedBank = !!employee.linkedBank;
-  const fmt = (n: number) => n.toLocaleString('vi-VN');
+  const dailyRate = (employee.grossSalary || 0) / 22;
+  const earnedSalary = Math.floor(dailyRate * (employee.workingDays || 0));
+  const workProgress = Math.round(((employee.workingDays || 0) / 22) * 100);
+  
+  // Safe currency formatter for iOS/Android/Web
+  const fmt = (n: number) => {
+    if (n === null || n === undefined || isNaN(n)) return '0';
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
 
-  const bankIconUrl = hasLinkedBank 
-    ? MOCK_BANKS.find(b => b.code === employee.linkedBank!.bankCode)?.logoUrl 
+  const bankIconUrl = hasLinkedBank
+    ? MOCK_BANKS.find(b => b.code === employee.linkedBank!.bankCode)?.logoUrl
+    : null;
+
+  const bankDisplay = hasLinkedBank
+    ? `${employee.linkedBank!.bankCode} ${employee.linkedBank!.maskedAccountNo || employee.linkedBank!.accountNo}`
     : null;
 
   const handleLogout = async () => {
@@ -144,8 +165,8 @@ export default function DashboardScreen() {
               <View>
                 <Text style={styles.bankLabel}>Tài khoản liên kết</Text>
                 <Text style={styles.bankValue}>
-                  {hasLinkedBank 
-                    ? `Vietcombank 1024****`
+                  {hasLinkedBank
+                    ? bankDisplay
                     : 'Chưa liên kết'}
                 </Text>
               </View>

@@ -13,8 +13,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class TopupRequest {
 
-    @NotBlank(message = "Mã nhân viên không được để trống")
-    private String employeeCode;
+    private String employeeCode; // injected by controller from JWT
 
     @NotBlank(message = "Số điện thoại không được để trống")
     @Pattern(regexp = "^(0|\\+84)[3-9][0-9]{8}$", message = "Số điện thoại không hợp lệ")

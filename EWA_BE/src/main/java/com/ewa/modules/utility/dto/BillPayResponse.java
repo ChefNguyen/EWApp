@@ -10,5 +10,6 @@ public class BillPayResponse {
     private boolean success;
     private String transactionId;
     private long newLimit;
+    private long feeVnd;
     private String error;
 }

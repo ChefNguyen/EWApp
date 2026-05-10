@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { colors, shadows } from '../theme/colors';
+import TopBar from '../components/TopBar';
 
 type MenuAction = 'employee-info' | 'link-bank' | 'devices' | 'notifications' | 'security' | 'terms' | 'support' | 'rating';
 
@@ -104,21 +105,13 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <TopBar title="Cá nhân" onBack={() => navigation.goBack()} />
+
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerButton} activeOpacity={0.8} onPress={() => handleComingSoon('Menu')}>
-            <Feather name="menu" size={26} color={colors.indigo900} />
-          </TouchableOpacity>
-          <Text style={styles.brandText}>EWA</Text>
-          <TouchableOpacity style={styles.headerButton} activeOpacity={0.8} onPress={() => handleComingSoon('Thông báo')}>
-            <Feather name="bell" size={22} color={colors.indigo900} />
-          </TouchableOpacity>
-        </View>
-
         <LinearGradient
           colors={['#162B90', '#1F5DC5']}
           start={{ x: 0, y: 0 }}
@@ -206,7 +199,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 12,
     paddingBottom: 120,
   },
   header: {

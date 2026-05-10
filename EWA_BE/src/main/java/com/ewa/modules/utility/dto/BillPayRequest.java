@@ -10,8 +10,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class BillPayRequest {
 
-    @NotBlank(message = "Mã nhân viên không được để trống")
-    private String employeeCode;
+    private String employeeCode; // injected by controller from JWT
 
     @NotBlank(message = "Mã hóa đơn không được để trống")
     private String billKey;

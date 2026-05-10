@@ -7,10 +7,12 @@ import com.ewa.common.entity.PayrollPeriod;
 import com.ewa.common.enums.LedgerEntryType;
 import com.ewa.common.enums.PayrollPeriodStatus;
 import com.ewa.common.enums.WorkUnitType;
+import com.ewa.common.enums.WithdrawalStatus;
 import com.ewa.common.repository.EmployeeRepository;
 import com.ewa.common.repository.LedgerEntryRepository;
 import com.ewa.common.repository.PayPolicyRepository;
 import com.ewa.common.repository.PayrollPeriodRepository;
+import com.ewa.common.repository.WithdrawalRepository;
 import com.ewa.common.repository.WorkEntryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -42,6 +44,7 @@ class AvailableLimitServiceTest {
     @Mock private PayPolicyRepository payPolicyRepository;
     @Mock private WorkEntryRepository workEntryRepository;
     @Mock private LedgerEntryRepository ledgerEntryRepository;
+    @Mock private WithdrawalRepository withdrawalRepository;
 
     @InjectMocks
     private AvailableLimitService service;
@@ -207,5 +210,50 @@ class AvailableLimitServiceTest {
 
         // dailyRate = 26 * 1,000,000 / 26 = 1,000,000; 13 days * 1M = 13M; 80% = 10,400,000
         assertThat(result).isEqualTo(10_400_000L);
+    }
+
+    @Test
+    @DisplayName("Should subtract pending withdrawals (CREATED/PROCESSING) from limit immediately")
+    void calculateLimit_subtractsPendingWithdrawals() {
+        when(employeeRepository.findByEmployeeCode(EMP_CODE)).thenReturn(Optional.of(employee));
+        when(payrollPeriodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(payrollPeriod));
+        when(payPolicyRepository.findByEmployerIdAndEffectiveFromLessThanEqualAndEffectiveToIsNullOrEffectiveToGreaterThanEqualOrderByEffectiveFromDesc(
+                eq(EMPLOYER_ID), any(), any())).thenReturn(List.of(policy));
+        when(workEntryRepository.sumEarnedVndByEmployeeAndPayrollPeriod(EMP_ID, PERIOD_ID))
+                .thenReturn(Optional.of(10_000_000L));
+        when(ledgerEntryRepository.sumAmountVndByEmployeeAndPayrollPeriodAndTypes(
+                eq(EMP_ID), eq(PERIOD_ID), any()))
+                .thenReturn(Optional.of(0L)); // no ledger entries yet
+        // Two pending withdrawals totalling 3,000,000 VND
+        when(withdrawalRepository.sumPendingWithdrawalDebits(eq(EMP_ID), eq(PERIOD_ID), any()))
+                .thenReturn(3_000_000L);
+
+        long result = service.calculateAvailableLimit(EMP_CODE, PERIOD_ID);
+
+        // 10M × 80% = 8M – 0 ledger – 3M pending = 5M
+        assertThat(result).isEqualTo(5_000_000L);
+    }
+
+    @Test
+    @DisplayName("Pending withdrawals should not cause double-deduction when webhook succeeds")
+    void calculateLimit_noDoubleDeductionAfterWebhook() {
+        when(employeeRepository.findByEmployeeCode(EMP_CODE)).thenReturn(Optional.of(employee));
+        when(payrollPeriodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(payrollPeriod));
+        when(payPolicyRepository.findByEmployerIdAndEffectiveFromLessThanEqualAndEffectiveToIsNullOrEffectiveToGreaterThanEqualOrderByEffectiveFromDesc(
+                eq(EMPLOYER_ID), any(), any())).thenReturn(List.of(policy));
+        when(workEntryRepository.sumEarnedVndByEmployeeAndPayrollPeriod(EMP_ID, PERIOD_ID))
+                .thenReturn(Optional.of(10_000_000L));
+        // Ledger has WITHDRAW_DEBIT = 3,000,000 (written by webhook success)
+        when(ledgerEntryRepository.sumAmountVndByEmployeeAndPayrollPeriodAndTypes(
+                eq(EMP_ID), eq(PERIOD_ID), any()))
+                .thenReturn(Optional.of(3_000_000L));
+        // Withdrawal status is now SUCCESS → excluded from pending query
+        when(withdrawalRepository.sumPendingWithdrawalDebits(eq(EMP_ID), eq(PERIOD_ID), any()))
+                .thenReturn(0L);
+
+        long result = service.calculateAvailableLimit(EMP_CODE, PERIOD_ID);
+
+        // 10M × 80% = 8M – 3M ledger = 5M  (no double deduction)
+        assertThat(result).isEqualTo(5_000_000L);
     }
 }
