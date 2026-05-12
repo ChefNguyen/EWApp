@@ -78,8 +78,8 @@ function CustomTabBar({ navigation }: BottomTabBarProps) {
         style={styles.chatBubble}
       >
         <View style={styles.robotHead}>
-          <View style={styles.robotAntenna} />
-          <MaterialCommunityIcons name="robot-happy-outline" size={28} color={colors.indigo700} />
+          <MaterialCommunityIcons name="robot-happy" size={28} color={colors.white} />
+          <View style={styles.onlineDot} />
         </View>
       </Pressable>
     </View>
@@ -220,24 +220,32 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.14,
     shadowRadius: 24,
     elevation: 14,
+    zIndex: 10,
   },
   chatBubbleActive: {
     backgroundColor: colors.indigo900,
     borderColor: colors.indigo500,
   },
   robotHead: {
-    width: 40,
-    height: 36,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
-    backgroundColor: colors.indigo50,
-    borderWidth: 1,
-    borderColor: colors.indigo100,
+    borderRadius: 24,
+    backgroundColor: colors.indigo900,
+    borderWidth: 3,
+    borderColor: colors.white,
   },
-  robotHeadActive: {
-    backgroundColor: colors.indigo600,
-    borderColor: colors.indigo400,
+  onlineDot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.emerald500,
+    borderWidth: 2,
+    borderColor: colors.white,
   },
   robotAntenna: {
     position: 'absolute',

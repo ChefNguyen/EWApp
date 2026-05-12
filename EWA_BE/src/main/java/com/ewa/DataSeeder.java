@@ -41,13 +41,13 @@ public class DataSeeder implements CommandLineRunner {
         } catch (Exception ignored) {
         }
 
-        if (employeeRepository.findByEmployeeCode("NV004").isPresent() && bankAccountRepository.findById(NV001_BANK_ID).isPresent()) {
-            System.out.println("========== [THÔNG BÁO] ==========");
-            System.out.println("✅ Seed data NV001-NV004 đã tồn tại.");
-            System.out.println("BankAccount NV001: " + NV001_BANK_ID);
-            System.out.println("=================================");
-            return;
-        }
+//        if (employeeRepository.findByEmployeeCode("NV004").isPresent() && bankAccountRepository.findById(NV001_BANK_ID).isPresent()) {
+//            System.out.println("========== [THÔNG BÁO] ==========");
+//            System.out.println("✅ Seed data NV001-NV004 đã tồn tại.");
+//            System.out.println("BankAccount NV001: " + NV001_BANK_ID);
+//            System.out.println("=================================");
+//            return;
+//        }
 
         entityManager.createNativeQuery("DELETE FROM work_entries").executeUpdate();
         entityManager.createNativeQuery("DELETE FROM payout_attempts").executeUpdate();
@@ -86,7 +86,7 @@ public class DataSeeder implements CommandLineRunner {
         period.setStatus(PayrollPeriodStatus.OPEN);
         period = payrollPeriodRepository.save(period);
 
-        seedEmployee(employer, period, "NV001", "Nguyễn Văn A", "0901234567", "VCB", "0987654321", "NGUYEN VAN A", 22, 909091L, "nv001", NV001_BANK_ID);
+        seedEmployee(employer, period, "NV001", "Nguyễn Văn A", "0901234567", "VCB", "0987654321", "NGUYEN VAN A", 22, 2000000L, "nv001", NV001_BANK_ID);
         seedEmployee(employer, period, "NV002", "Trần Thị B", "0909876543", "VCB", "1234567890", "TRAN THI B", 20, 681818L, "nv002", NV002_BANK_ID);
         seedEmployee(employer, period, "NV003", "Lê Văn C", "0912345678", "MB", "5555666677", "LE VAN C", 10, 454545L, "nv003", NV003_BANK_ID);
         seedEmployee(employer, period, "NV004", "Phạm Thị D", "0987654321", "ACB", "9999888877", "PHAM THI D", 5, 227273L, "nv004", NV004_BANK_ID);

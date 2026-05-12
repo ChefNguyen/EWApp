@@ -33,5 +33,5 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
             UUID referenceId
     );
 
-    List<LedgerEntry> findTop20ByEmployeeEmployeeCodeOrderByOccurredAtDesc(String employeeCode);
+    List<LedgerEntry> findTop50ByEmployeeEmployeeCodeOrderByOccurredAtDesc(String employeeCode);
 }

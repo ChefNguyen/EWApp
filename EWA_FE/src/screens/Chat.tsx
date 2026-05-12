@@ -9,6 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -100,11 +101,17 @@ export default function ChatScreen() {
 
           <View style={styles.bottomSection}>
             <View style={styles.quickPromptWrap}>
-              {QUICK_PROMPTS.map(prompt => (
-                <TouchableOpacity key={prompt} style={styles.quickPrompt} onPress={() => sendMessage(prompt)} activeOpacity={0.8}>
-                  <Text style={styles.quickPromptText}>{prompt}</Text>
-                </TouchableOpacity>
-              ))}
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={styles.quickPromptScroll}
+              >
+                {QUICK_PROMPTS.map(prompt => (
+                  <TouchableOpacity key={prompt} style={styles.quickPrompt} onPress={() => sendMessage(prompt)} activeOpacity={0.8}>
+                    <Text style={styles.quickPromptText}>{prompt}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
 
             <View style={styles.inputWrap}>
@@ -179,8 +186,24 @@ const styles = StyleSheet.create({
   userText: { color: colors.white },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 48, paddingVertical: 8 },
   loadingText: { fontSize: 13, color: colors.slate600, fontWeight: '700' },
-  quickPromptWrap: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, gap: 8 },
-  quickPrompt: { backgroundColor: colors.indigo50, borderWidth: 1, borderColor: colors.indigo100, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 11 },
+  quickPromptWrap: { 
+    paddingTop: 10, 
+    paddingBottom: 6,
+  },
+  quickPromptScroll: {
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  quickPrompt: { 
+    backgroundColor: colors.indigo50, 
+    borderWidth: 1, 
+    borderColor: colors.indigo100, 
+    borderRadius: 20, 
+    paddingHorizontal: 16, 
+    paddingVertical: 10,
+    height: 40,
+    justifyContent: 'center',
+  },
   quickPromptText: { color: colors.indigo700, fontSize: 13, lineHeight: 18, fontWeight: '800' },
   inputWrap: {
     flexDirection: 'row',
