@@ -34,7 +34,7 @@ public class ChatService {
                 .stream()
                 .limit(MAX_WITHDRAWALS)
                 .toList();
-        List<com.ewa.common.entity.LedgerEntry> ledgerEntries = ledgerEntryRepository.findTop20ByEmployeeEmployeeCodeOrderByOccurredAtDesc(employeeCode);
+        List<com.ewa.common.entity.LedgerEntry> ledgerEntries = ledgerEntryRepository.findTop50ByEmployeeEmployeeCodeOrderByOccurredAtDesc(employeeCode);
 
         try {
             String answer = geminiChatClient.ask(buildSystemPrompt(), buildUserPrompt(employee, availableLimit, withdrawals, ledgerEntries, request.getMessage()));

@@ -25,7 +25,7 @@ interface AppContextType {
 const WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
-  text: 'Xin chào! Tôi có thể hỗ trợ bạn kiểm tra hạn mức rút lương, lịch sử giao dịch và hóa đơn trong EWApp.',
+  text: 'Xin chào! Tôi có thể hỗ trợ gì cho bạn?',
 };
 
 const AppContext = createContext<AppContextType | null>(null);

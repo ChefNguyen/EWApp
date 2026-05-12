@@ -2,6 +2,7 @@ package com.ewa.modules.transaction;
 
 import com.ewa.common.entity.LedgerEntry;
 import com.ewa.common.enums.LedgerEntryType;
+import com.ewa.common.enums.LedgerReferenceType;
 import com.ewa.common.repository.LedgerEntryRepository;
 import com.ewa.modules.transaction.dto.TransactionResponse;
 import com.ewa.security.SecurityUtils;
@@ -24,13 +25,33 @@ public class TransactionController {
     @GetMapping
     public ResponseEntity<List<TransactionResponse>> getTransactionHistory() {
         String employeeCode = SecurityUtils.getCurrentEmployeeCode();
-        List<LedgerEntry> entries = ledgerEntryRepository.findTop20ByEmployeeEmployeeCodeOrderByOccurredAtDesc(employeeCode);
+        // Fetch more to account for grouping
+        List<LedgerEntry> entries = ledgerEntryRepository.findTop50ByEmployeeEmployeeCodeOrderByOccurredAtDesc(employeeCode);
 
-        List<TransactionResponse> responses = entries.stream()
-                .map(this::mapToResponse)
+        // Group by referenceId to merge withdrawal and fee
+        java.util.Map<java.util.UUID, TransactionResponse> aggregated = new java.util.LinkedHashMap<>();
+
+        for (LedgerEntry entry : entries) {
+            java.util.UUID refId = entry.getReferenceId();
+            
+            if (refId != null && aggregated.containsKey(refId) && entry.getReferenceType() == LedgerReferenceType.WITHDRAWAL) {
+                TransactionResponse existing = aggregated.get(refId);
+                existing.setAmount(existing.getAmount() + entry.getAmountVnd());
+                if (entry.getEntryType() == LedgerEntryType.WITHDRAW_DEBIT) {
+                    existing.setType(LedgerEntryType.WITHDRAW_DEBIT.name());
+                    existing.setDescription("Rút tiền lương");
+                }
+            } else {
+                aggregated.put(refId != null ? refId : java.util.UUID.randomUUID(), mapToResponse(entry));
+            }
+        }
+
+        // Return top 20 after aggregation
+        List<TransactionResponse> result = aggregated.values().stream()
+                .limit(20)
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(responses);
+        return ResponseEntity.ok(result);
     }
 
     private TransactionResponse mapToResponse(LedgerEntry entry) {
@@ -41,7 +62,7 @@ public class TransactionController {
                 .id(entry.getId())
                 .type(type)
                 .amount(entry.getAmountVnd())
-                .status("SUCCESS") // Ledger entries represent completed accounting actions
+                .status("SUCCESS")
                 .occurredAt(entry.getOccurredAt())
                 .description(description)
                 .build();
